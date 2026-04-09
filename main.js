@@ -45,6 +45,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         sections.forEach(section => observer.observe(section));
     }
+
+    // 3. Mobile Menu Toggle
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const navLinksContainer = document.querySelector('.nav-links');
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', () => {
+            navLinksContainer.classList.toggle('active');
+            mobileMenuBtn.innerText = navLinksContainer.classList.contains('active') ? '✕' : '☰';
+        });
+
+        // Close menu when clicking a link
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                navLinksContainer.classList.remove('active');
+                mobileMenuBtn.innerText = '☰';
+            });
+        });
+    }
+
+    // 4. Carousel Dots Sync
+    const carousel = document.getElementById('quest-carousel');
+    const dots = document.querySelectorAll('.dot');
+
+    if (carousel && dots.length > 0) {
+        carousel.addEventListener('scroll', () => {
+            const scrollPercent = carousel.scrollLeft / (carousel.scrollWidth - carousel.clientWidth);
+            const activeIndex = Math.min(
+                Math.floor(scrollPercent * dots.length),
+                dots.length - 1
+            );
+            
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === activeIndex);
+            });
+        });
+    }
 });
 
 function showSection(role) {
@@ -59,5 +96,8 @@ function showSection(role) {
     document.querySelectorAll('.role-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    // Use target from event directly
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
 }
