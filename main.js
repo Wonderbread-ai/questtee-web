@@ -65,22 +65,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. Carousel Dots Sync
-    const carousel = document.getElementById('quest-carousel');
-    const dots = document.querySelectorAll('.dot');
-
-    if (carousel && dots.length > 0) {
-        carousel.addEventListener('scroll', () => {
-            const scrollPercent = carousel.scrollLeft / (carousel.scrollWidth - carousel.clientWidth);
-            const activeIndex = Math.min(
-                Math.floor(scrollPercent * dots.length),
-                dots.length - 1
-            );
-            
-            dots.forEach((dot, index) => {
-                dot.classList.toggle('active', index === activeIndex);
-            });
+    // 4. Carousel Marquee & Dots Sync
+    const carouselContaier = document.querySelector('.quest-cards-container');
+    const track = document.createElement('div');
+    track.className = 'quest-track';
+    
+    if (carouselContaier) {
+        const cards = Array.from(carouselContaier.children).filter(c => c.classList.contains('quest-card'));
+        
+        // Wrap cards in a track
+        carouselContaier.innerHTML = '';
+        carouselContaier.appendChild(track);
+        
+        cards.forEach(card => track.appendChild(card));
+        
+        // Clone cards for infinite loop
+        cards.forEach(card => {
+            const clone = card.cloneNode(true);
+            track.appendChild(clone);
         });
+
+        // Optional: Sync Dots if they exist
+        const dots = document.querySelectorAll('.dot');
+        if (dots.length > 0) {
+            carouselContaier.addEventListener('scroll', () => {
+                const scrollPercent = carouselContaier.scrollLeft / (carouselContaier.scrollWidth / 2);
+                const activeIndex = Math.min(
+                    Math.floor(scrollPercent * dots.length),
+                    dots.length - 1
+                );
+                
+                dots.forEach((dot, index) => {
+                    dot.classList.toggle('active', index === activeIndex);
+                });
+            });
+        }
     }
 });
 

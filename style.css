@@ -413,17 +413,31 @@ nav {
 
 .quest-cards-container {
     display: flex;
-    overflow-x: auto;
     gap: 1.5rem;
-    padding: 2rem 0.5rem;
+    padding: 2rem 1rem;
     margin-top: 1rem;
+    overflow-x: auto;
     scroll-snap-type: x mandatory;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE 10+ */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
 }
 
-.quest-cards-container::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
+/* Infinite Scroll Animation */
+.quest-track {
+    display: flex;
+    gap: 1.5rem;
+    animation: marquee 60s linear infinite;
+    width: max-content;
+}
+
+.quest-track:hover {
+    animation-play-state: paused;
+}
+
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
 }
 
 .quest-card {
@@ -437,7 +451,12 @@ nav {
     border: 2px solid transparent;
     transition: all 0.3s ease;
     cursor: pointer;
-    animation: bounceIn 0.8s ease backwards;
+}
+
+@media (max-width: 768px) {
+    .quest-card {
+        width: 280px; /* Peek effect: makes next card visible */
+    }
 }
 
 .quest-card:nth-child(1) { animation-delay: 0.1s; }
