@@ -414,21 +414,27 @@ nav {
 .quest-cards-container {
     display: flex;
     gap: 1.5rem;
-    padding: 2rem 1rem;
+    padding: 2rem 1.5rem;
     margin-top: 1rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    overflow-x: hidden; /* Hide scrollbar on desktop to prioritize marquee */
     -webkit-overflow-scrolling: touch;
+    position: relative;
+    width: 100vw;
+    margin-left: 50%;
+    transform: translateX(-50%);
+}
+
+.quest-cards-container::-webkit-scrollbar {
+    display: none;
 }
 
 /* Infinite Scroll Animation */
 .quest-track {
     display: flex;
     gap: 1.5rem;
-    animation: marquee 60s linear infinite;
+    animation: marquee 80s linear infinite; /* Slightly slower for desktop readability */
     width: max-content;
+    will-change: transform;
 }
 
 .quest-track:hover {
@@ -437,7 +443,7 @@ nav {
 
 @keyframes marquee {
     0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
+    100% { transform: translateX(calc(-50% - 0.75rem)); } /* Accurate half-track shift */
 }
 
 .quest-card {
