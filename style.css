@@ -76,8 +76,19 @@ p {
 }
 
 .section {
-    padding: 6rem 0;
+    padding-top: 6rem;
+    padding-bottom: 6rem;
     width: 100%;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 2rem; /* Increased for mobile comfort */
+    }
+    .section {
+        padding-top: 3rem;
+        padding-bottom: 3rem;
+    }
 }
 
 .text-center {
