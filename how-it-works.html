@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="How Questtee works. Simple steps for NSW teens to earn, parents to stay in control, and neighbours to get help.">
+    <title>How it Works | Questtee - Earning, Safety, Community</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    <style>
+        .how-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 8rem 0 4rem;
+            text-align: center;
+        }
+        .how-header h1 { color: white; margin-bottom: 1rem; }
+        .how-header p { color: rgba(255,255,255,0.8); font-size: 1.25rem; max-width: 700px; margin: 0 auto; }
+        
+        .role-selector {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: -2rem;
+            position: relative;
+            z-index: 10;
+        }
+        .role-btn {
+            background: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: var(--radius-lg);
+            font-weight: 800;
+            color: var(--primary);
+            box-shadow: var(--shadow-md);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .role-btn.active {
+            background: var(--gold);
+            color: var(--primary);
+            transform: translateY(-5px);
+        }
+        
+        .step-container {
+            max-width: 800px;
+            margin: 4rem auto;
+            position: relative;
+        }
+        .step-container::before {
+            content: '';
+            position: absolute;
+            left: 29px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--lime);
+            opacity: 0.3;
+        }
+        .step-item {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 4rem;
+            position: relative;
+        }
+        .step-number {
+            width: 60px;
+            height: 60px;
+            background: var(--lime);
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 900;
+            flex-shrink: 0;
+            z-index: 1;
+            box-shadow: 0 0 0 10px white;
+        }
+        .step-content {
+            padding-top: 0.5rem;
+        }
+        .step-content h3 { margin-bottom: 0.5rem; }
+        .step-content p { margin-bottom: 0; }
+        
+        .role-section { display: none; }
+        .role-section.active { display: block; }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container nav-content">
+            <a href="index.html" class="logo" id="main-logo">
+                <img src="images/logo.png" alt="Questtee Logo">
+            </a>
+            
+            <div class="nav-links">
+                <a href="index.html#quests" id="nav-quests">Browse Quests</a>
+                <a href="index.html#safety" id="nav-safety">For Parents</a>
+                <a href="how-it-works.html" id="nav-how" class="active">How it Works</a>
+                <a href="join.html" class="btn btn-primary" id="nav-download">Join the Waiting List</a>
+            </div>
+            
+            <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
+
+    <div class="how-header">
+        <div class="container animate-up">
+            <h1>The Journey to your first Quest.</h1>
+            <p>Whether you're looking to earn, looking to help, or making sure your teen is safe—we've simplified every step.</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="role-selector animate-up" style="animation-delay: 0.2s;">
+            <button class="role-btn active" onclick="showSection('teens')">For Teens</button>
+            <button class="role-btn" onclick="showSection('parents')">For Parents</button>
+            <button class="role-btn" onclick="showSection('quest-givers')">For Quest Givers</button>
+        </div>
+
+        <div id="teens" class="role-section active animate-up">
+            <div class="step-container">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Download & Onboard</h3>
+                        <p>Grab the Questtee app from the App Store or Google Play. Complete our interactive safety onboarding to learn the rules of the road.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Create Your Hero Profile</h3>
+                        <p>Pick your avatar, list your skills (mowing, pet care, tech help), and link your Stripe account. If you're under 18, we'll help you get parent sign-off in seconds.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Browse & Apply</h3>
+                        <p>Check out the real-time quest feed in your neighbourhood. Find something you like? Apply with one tap. No awkward interviews—just show your skills.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Complete & Get Paid</h3>
+                        <p>Head to the quest location, do a great job, and mark it complete. Once the Quest Giver confirms, funds are released to your account. A 10% platform fee is deducted to support our community safety systems.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="parents" class="role-section animate-up">
+            <div class="step-container">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Parental Consent</h3>
+                        <p>When your teenager signs up, you'll receive a one-tap consent request via email. You're always the gatekeeper.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Safety Guardrails</h3>
+                        <p>Our system automatically blocks quests during school hours and late at night. We also hide your home's exact location from potential Quest Givers.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Full Visibility</h3>
+                        <p>Access your dedicated Parent Dashboard to see exactly what quests your teen is doing, how much they're earning, and who they're helping.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="quest-givers" class="role-section animate-up">
+            <div class="step-container">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Post a Quest</h3>
+                        <p>Describe the help you need, set a fair price (between $5–$50), and choose a time that works for you. It takes under 3 minutes.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Review Applications</h3>
+                        <p>Browse profiles of local, motivated teens who've applied. See their ratings, badges, and history before you choose who to invite over.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Job Done, Effortless Pay</h3>
+                        <p>Once the quest is finished, confirm it in the app. Payment is handled automatically via escrow, with a flat $0.50 listing fee added to your total. No need to worry about change or cash.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="cta-section" id="download">
+        <div class="container animate-up">
+            <h2>Ready to join the community?</h2>
+            <p>Be the first to know when Quests go live in your street.</p>
+            <a href="join.html" class="btn btn-primary" id="footer-cta" style="transform: scale(1.1);">Join the waiting list</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <a href="index.html" class="logo">
+                        <img src="images/logo-letterhead.png" alt="Questtee Heart Logo" style="height: 140px; width: auto;">
+                    </a>
+                    <p style="margin-top: 1rem; max-width: 300px;">Community tasks for the next generation. Earning and skill-building for NSW teens.</p>
+                </div>
+                
+                <div class="footer-links">
+                    <h4>Parents & Trust</h4>
+                    <ul>
+                        <li><a href="safety.html">Safety Guidelines</a></li>
+                        <li><a href="parent-consent.html">Parent Guardian Consent</a></li>
+                        <li><a href="privacy.html">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-links">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="contact.html">support@questtee.com</a></li>
+                        <li><a href="terms.html">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Questtee App. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+</html>

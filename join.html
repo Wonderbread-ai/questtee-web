@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join the Waiting List | Questtee</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <div class="container nav-content">
+            <a href="index.html" class="logo">
+                <img src="images/logo.png" alt="Questtee Logo">
+            </a>
+            <div class="nav-links">
+                <a href="index.html#quests">Browse Quests</a>
+                <a href="index.html#safety">For Parents</a>
+                <a href="how-it-works.html">How it Works</a>
+                <a href="join.html" class="btn btn-primary active">Join the Quest!</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container section animate-up" style="margin-top: 80px;">
+        <h1 style="text-align: center; margin-bottom: 1rem;">The Quest begins soon.</h1>
+        <p style="text-align: center; margin-bottom: 3rem; color: var(--text-gray);">Join 500+ locals waiting for the first rollout in their area. Be the first to know when Quests open in your street.</p>
+        
+        <div style="max-width: 500px; margin: 0 auto;">
+            <!-- Note: Integration instructions provided alongside this file -->
+            <form id="waiting-list-form" style="background: white; padding: 2.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg);">
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Name</label>
+                    <input type="text" name="name" id="name" required placeholder="Your full name" style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Email Address</label>
+                    <input type="email" name="email" id="email" required placeholder="you@example.com" style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Suburb</label>
+                    <input type="text" name="suburb" id="suburb" required placeholder="e.g. Surry Hills" style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">State</label>
+                        <select name="state" id="state" required style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                            <option value="NSW">NSW</option>
+                            <option value="VIC">VIC</option>
+                            <option value="QLD">QLD</option>
+                            <option value="ACT">ACT</option>
+                            <option value="WA">WA</option>
+                            <option value="SA">SA</option>
+                            <option value="TAS">TAS</option>
+                            <option value="NT">NT</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Postcode</label>
+                        <input type="text" name="postcode" id="postcode" required placeholder="2000" style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">I am a...</label>
+                    <select name="role" id="role" required style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                        <option value="teen">Teen (Questtee)</option>
+                        <option value="parent">Parent of a Teen</option>
+                        <option value="quest-giver">Quest Giver (Neighbour)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">How did you hear about us?</label>
+                    <select name="referral" id="referral" required style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                        <option value="social">Social Media</option>
+                        <option value="friend">Friend or Family</option>
+                        <option value="search">Search Engine</option>
+                        <option value="school">School / Community Group</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; font-size: 1.2rem;">Join the Waiting List!</button>
+                <p style="font-size: 0.8rem; text-align: center; margin-top: 1rem; color: #999;">By joining, you agree to our <a href="privacy.html" style="color: var(--primary);">Privacy Policy</a>.</p>
+            </form>
+
+            <div id="success-screen" style="display: none; text-align: center; padding: 3rem 1rem; background: var(--lime); border-radius: var(--radius-md); color: var(--primary);">
+                <span style="font-size: 3rem;">🎒</span>
+                <h2 style="margin-top: 1rem;">You're in the Loop!</h2>
+                <p>We've added you to the list. Keep an eye on your inbox for your State's rollout dates.</p>
+                <a href="index.html" class="btn btn-secondary" style="margin-top: 1rem;">Back to Home</a>
+            </div>
+        </div>
+    </main>
+
+    <footer style="margin-top: 4rem;">
+        <div class="container">
+            <div class="footer-content">
+                <!-- Footer content is same as shared -->
+                <div class="footer-logo">
+                    <a href="index.html" class="logo">
+                        <img src="images/logo-letterhead.png" alt="Questtee Heart Logo" style="height: 140px; width: auto;">
+                    </a>
+                </div>
+                <div class="footer-links">
+                    <h4>Trust</h4>
+                    <ul>
+                        <li><a href="safety.html">Safety</a></li>
+                        <li><a href="terms.html">Terms</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+    <script>
+        const form = document.getElementById('waiting-list-form');
+        const success = document.getElementById('success-screen');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // 1. YOUR GOOGLE URL GOES HERE:
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzt6bZn-4q7vGTE6ZYTVCXzMmlbwmHX3DTt1sjcIsqje4Bo-PHVqgr8laOhBEDoNXV8/exec';
+            
+            // UI Feedback
+            const btn = form.querySelector('button');
+            btn.innerText = 'Joining...';
+            btn.disabled = true;
+
+            try {
+                // 2. Send data to Google Sheet
+                if (SCRIPT_URL !== 'PASTE_YOUR_URL_HERE' && SCRIPT_URL !== '') {
+                    const params = new URLSearchParams(new FormData(form));
+                    await fetch(SCRIPT_URL, { 
+                        method: 'POST', 
+                        body: params,
+                        mode: 'no-cors' // Required for Google Scripts
+                    });
+                }
+
+                // 3. Show Success
+                setTimeout(() => {
+                    form.style.display = 'none';
+                    success.style.display = 'block';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }, 800);
+
+            } catch (error) {
+                console.error('Error!', error.message);
+                btn.innerText = 'Try Again';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Support | Questtee</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <div class="container nav-content">
+            <a href="index.html" class="logo">
+                <img src="images/logo.png" alt="Questtee Logo">
+            </a>
+            <div class="nav-links">
+                <a href="index.html#quests">Browse Quests</a>
+                <a href="index.html#safety">For Parents</a>
+                <a href="how-it-works.html">How it Works</a>
+                <a href="contact.html" class="btn btn-primary">Support</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container section animate-up" style="margin-top: 80px;">
+        <h1 style="text-align: center; margin-bottom: 3rem;">How can we help?</h1>
+        
+        <div style="max-width: 600px; margin: 0 auto;">
+            <p style="text-align: center; margin-bottom: 2rem;">If you have any questions or need to report a problem, our support team is sitting by to help. Fill out the form below and we'll get back to you within 24 hours.</p>
+            
+            <form id="contact-form" onsubmit="event.preventDefault(); showSuccess();" style="background: white; padding: 2rem; border-radius: var(--radius-md); box-shadow: var(--shadow-md);">
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">I am a...</label>
+                    <select style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                        <option value="teen">Questtee (Teen)</option>
+                        <option value="parent">Parent or Guardian</option>
+                        <option value="customer">Quest Giver (Customer)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Full Name</label>
+                    <input type="text" required placeholder="Enter your name" style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Email Address</label>
+                    <input type="email" required placeholder="Enter your email" style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;">
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Message</label>
+                    <textarea required placeholder="How can we help?" style="width: 100%; height: 150px; padding: 0.8rem; border-radius: var(--radius-sm); border: 2px solid #efefef;"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Send to support@questtee.com</button>
+            </form>
+
+            <div id="success-message" style="display: none; text-align: center; margin-top: 2rem; padding: 2rem; background: var(--lime); border-radius: var(--radius-md); color: var(--primary);">
+                <h3>Message Sent Successfully!</h3>
+                <p>Waiting to hear back? Check your inbox soon.</p>
+                <a href="index.html" class="btn btn-secondary">Back to Homepage</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showSuccess() {
+            document.getElementById('contact-form').style.display = 'none';
+            document.getElementById('success-message').style.display = 'block';
+        }
+    </script>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <a href="index.html" class="logo">
+                        <img src="images/logo-letterhead.png" alt="Questtee Heart Logo" style="height: 140px; width: auto;">
+                    </a>
+                    <p style="margin-top: 1rem; max-width: 300px;">Community tasks for the next generation. Earning and skill-building for NSW teens.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Parents & Trust</h4>
+                    <ul>
+                        <li><a href="safety.html">Safety Guidelines</a></li>
+                        <li><a href="parent-consent.html">Parent Guardian Consent</a></li>
+                        <li><a href="privacy.html">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="contact.html">support@questtee.com</a></li>
+                        <li><a href="terms.html">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <script src="main.js"></script>
+</body>
+</html>
