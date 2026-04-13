@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Feedback</title>
+  <style>
+    :root {
+      --primary: #0D5257; --primary-dark: #0A3D40; --accent: #DA291C;
+      --bg: #F8F9FA; --text: #333333; --text-light: #666666; --border: #E0E0E0;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; }
+    .container { max-width: 600px; margin: 0 auto; padding: 24px 16px; }
+    .card { background: #fff; border-radius: 16px; padding: 32px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .illustration { width: 100%; max-width: 400px; margin: 0 auto 16px; display: block; }
+    h1 { font-size: 1.75rem; text-align: center; margin-bottom: 8px; color: var(--text); font-weight: 700; }
+    .subtitle { text-align: center; color: var(--text-light); margin-bottom: 28px; font-size: 0.95rem; }
+    .customer-details { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 2px dashed var(--border); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    input[type="text"], input[type="tel"], textarea {
+      width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 8px;
+      font-size: 1rem; font-family: inherit; color: var(--text); transition: border-color 0.2s; background: #fff;
+    }
+    input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+    input::placeholder, textarea::placeholder { color: #aaa; }
+    .question { margin-bottom: 28px; }
+    label { display: block; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+    .optional { font-weight: 400; color: var(--text-light); }
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+    .emoji-side { font-size: 1.5rem; flex-shrink: 0; }
+    input[type="range"] {
+      flex: 1; height: 8px; border-radius: 4px;
+      background: linear-gradient(to right, #DA291C, #FFB74D, #0D5257);
+      -webkit-appearance: none; appearance: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%;
+      background: #fff; border: 3px solid #0D5257; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: transform 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+    input[type="range"]::-moz-range-thumb {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #fff; border: 3px solid #0D5257;
+      cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .emoji-display { text-align: center; font-size: 2.5rem; margin-top: 12px; height: 50px; display: flex; align-items: center; justify-content: center; }
+    .rating-value { text-align: center; font-size: 0.9rem; color: var(--text-light); margin-top: 4px; }
+    .rating-value strong { color: var(--primary-dark); font-size: 1.1rem; }
+    textarea { resize: vertical; }
+    .btn {
+      width: 100%; padding: 16px 24px; background: var(--primary); color: #fff;
+      border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; margin-top: 8px; font-family: inherit;
+    }
+    .btn:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(13,82,87,0.4); }
+    .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    .hidden { display: none !important; }
+    .thank-you { text-align: center; padding: 20px 0; }
+    .success-icon {
+      width: 72px; height: 72px; background: #28A745; color: #fff;
+      font-size: 2.5rem; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; margin: 0 auto 20px;
+    }
+    .thank-you h2 { font-size: 1.5rem; margin-bottom: 12px; }
+    .subtext { color: var(--text-light); margin-top: 8px; }
+    .admin-link { text-align: center; margin-top: 20px; }
+    .admin-link a { color: var(--primary); text-decoration: none; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    @media (max-width: 480px) { .card { padding: 24px 16px; } h1 { font-size: 1.4rem; } }
+    @media (min-width: 768px) { .card { padding: 40px 36px; } h1 { font-size: 2rem; } .emoji-display { font-size: 3rem; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <!-- SVG People Illustration -->
+      <svg class="illustration" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="50"  cy="35" r="18" fill="#0D5257"/><ellipse cx="50"  cy="85" rx="22" ry="30" fill="#0D5257"/>
+        <circle cx="120" cy="30" r="20" fill="#DA291C"/><ellipse cx="120" cy="82" rx="24" ry="32" fill="#DA291C"/>
+        <circle cx="195" cy="28" r="22" fill="#0D5257"/><ellipse cx="195" cy="80" rx="26" ry="34" fill="#0D5257"/>
+        <circle cx="280" cy="32" r="19" fill="#DA291C"/><ellipse cx="280" cy="84" rx="23" ry="31" fill="#DA291C"/>
+        <circle cx="350" cy="36" r="17" fill="#0D5257"/><ellipse cx="350" cy="86" rx="21" ry="29" fill="#0D5257"/>
+      </svg>
+
+      <h1>Thank You For Your Support</h1>
+      <p class="subtitle">We value your feedback and strive to improve</p>
+
+      <!-- Form -->
+      <form id="feedbackForm">
+        <div class="customer-details">
+          <div class="form-row">
+            <input type="text" id="customer_name" placeholder="Name">
+            <input type="tel"  id="customer_phone" placeholder="Phone">
+          </div>
+        </div>
+
+        <div class="question">
+          <label>Were you treated like a valued customer?</label>
+          <div class="slider-row">
+            <span class="emoji-side">😟</span>
+            <input type="range" id="q1" min="1" max="10" value="10">
+            <span class="emoji-side">😊</span>
+          </div>
+          <div class="emoji-display" id="q1_emoji">😊</div>
+          <div class="rating-value"><strong id="q1_val">10</strong>/10</div>
+        </div>
+
+        <div class="question">
+          <label>Ease of transaction?</label>
+          <div class="slider-row">
+            <span class="emoji-side">😟</span>
+            <input type="range" id="q2" min="1" max="10" value="10">
+            <span class="emoji-side">😊</span>
+          </div>
+          <div class="emoji-display" id="q2_emoji">😊</div>
+          <div class="rating-value"><strong id="q2_val">10</strong>/10</div>
+        </div>
+
+        <div class="question">
+          <label>Feedback <span class="optional">(optional)</span></label>
+          <textarea id="feedback_text" rows="4" placeholder="Tell us more about your experience..."></textarea>
+        </div>
+
+        <div class="question">
+          <label>Nominate Team Member <span class="optional">(optional)</span></label>
+          <input type="text" id="nominate_team" placeholder="Who helped you today?">
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn">Submit Feedback</button>
+      </form>
+
+      <!-- Thank You State -->
+      <div id="thankYou" class="thank-you hidden">
+        <div class="success-icon">✓</div>
+        <h2>Thank You!</h2>
+        <p>Your feedback has been submitted successfully.</p>
+        <p class="subtext">We appreciate you taking the time to share your thoughts.</p>
+      </div>
+
+      <div class="admin-link">
+        <a href="/feedbackhidden-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CONVEX_URL = 'https://calculating-cat-557.convex.cloud';
+
+    function getEmoji(v) {
+      if (v <= 2) return '😟';
+      if (v <= 4) return '😞';
+      if (v <= 6) return '😐';
+      if (v <= 8) return '🙂';
+      return '😊';
+    }
+
+    // Slider interactivity
+    ['q1','q2'].forEach(id => {
+      const slider = document.getElementById(id);
+      const emoji  = document.getElementById(id + '_emoji');
+      const val    = document.getElementById(id + '_val');
+      slider.addEventListener('input', () => {
+        emoji.textContent = getEmoji(+slider.value);
+        val.textContent   = slider.value;
+      });
+    });
+
+    // Form submit
+    document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      const args = {
+        q1Rating: +document.getElementById('q1').value,
+        q2Rating: +document.getElementById('q2').value,
+      };
+      const name  = document.getElementById('customer_name').value.trim();
+      const phone = document.getElementById('customer_phone').value.trim();
+      const text  = document.getElementById('feedback_text').value.trim();
+      const nom   = document.getElementById('nominate_team').value.trim();
+      if (name)  args.customerName  = name;
+      if (phone) args.customerPhone = phone;
+      if (text)  args.feedbackText  = text;
+      if (nom)   args.nominateTeam  = nom;
+
+      try {
+        await fetch(CONVEX_URL + '/api/mutation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'businessFeedback:submit', args, format: 'json' }),
+        });
+      } catch (err) {
+        console.error('Submission error:', err);
+      }
+
+      // Show thank you regardless (avoid confusing customer)
+      document.getElementById('feedbackForm').classList.add('hidden');
+      document.getElementById('thankYou').classList.remove('hidden');
+
+      // Auto-reset after 4 seconds
+      setTimeout(() => {
+        document.getElementById('feedbackForm').classList.remove('hidden');
+        document.getElementById('thankYou').classList.add('hidden');
+        document.getElementById('feedbackForm').reset();
+        ['q1','q2'].forEach(id => {
+          document.getElementById(id + '_emoji').textContent = '😊';
+          document.getElementById(id + '_val').textContent   = '10';
+        });
+        btn.disabled    = false;
+        btn.textContent = 'Submit Feedback';
+      }, 4000);
+    });
+  </script>
+</body>
+</html>

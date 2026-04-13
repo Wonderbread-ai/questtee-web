@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Admin</title>
+  <style>
+    :root { --primary: #0D5257; --primary-dark: #0A3D40; --bg: #F8F9FA; --text: #333; --text-light: #666; --border: #E0E0E0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; }
+    /* Login */
+    .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .login-card { background: #fff; border-radius: 16px; padding: 40px 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 380px; text-align: center; }
+    .lock-icon { font-size: 3rem; margin-bottom: 16px; }
+    .login-card h2 { font-size: 1.5rem; margin-bottom: 24px; font-weight: 700; }
+    .field { margin-bottom: 16px; text-align: left; }
+    .field input { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; transition: border-color 0.2s; }
+    .field input:focus { outline: none; border-color: var(--primary); }
+    .btn-primary { width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .error-msg { color: #DC3545; margin-top: 12px; font-size: 0.9rem; }
+    .back-link { margin-top: 20px; }
+    .back-link a { color: var(--text-light); text-decoration: none; font-size: 0.9rem; }
+    /* Dashboard */
+    #dashboard { display: none; }
+    .dash-container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .dash-header h1 { font-size: 1.5rem; font-weight: 700; }
+    .btn-logout { padding: 8px 18px; background: transparent; border: 2px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--primary); color: var(--primary); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+    .stat-label { font-size: 0.8rem; color: var(--text-light); margin-top: 4px; }
+    .search-bar { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; margin-bottom: 16px; transition: border-color 0.2s; }
+    .search-bar:focus { outline: none; border-color: var(--primary); }
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: var(--bg); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+    th:hover { background: rgba(13,82,87,0.08); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+    .refresh-btn { padding: 8px 16px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    .refresh-btn:hover { background: var(--primary-dark); }
+    @media (max-width: 600px) { .stats { grid-template-columns: 1fr 1fr; } th, td { padding: 10px 7px; font-size: 0.82rem; } }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div class="login-wrap" id="loginWrap">
+    <div class="login-card">
+      <div class="lock-icon">🔒</div>
+      <h2>Admin Login</h2>
+      <form id="loginForm">
+        <div class="field"><input type="text"     id="uname" placeholder="Username" autocomplete="username"></div>
+        <div class="field"><input type="password" id="upass" placeholder="Password" autocomplete="current-password"></div>
+        <button type="submit" class="btn-primary">Login</button>
+        <p class="error-msg" id="loginError"></p>
+      </form>
+      <div class="back-link"><a href="/feedbackhidden">← Back to form</a></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="dash-container">
+      <div class="dash-header">
+        <h1>Feedback Dashboard</h1>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+          <button class="btn-logout" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-value" id="totalCount">—</div><div class="stat-label">Total Responses</div></div>
+        <div class="stat"><div class="stat-value" id="avgQ1">—</div><div class="stat-label">Avg Valued Customer</div></div>
+        <div class="stat"><div class="stat-value" id="avgQ2">—</div><div class="stat-label">Avg Ease of Transaction</div></div>
+      </div>
+
+      <input type="text" class="search-bar" id="searchBar" placeholder="Search feedback..." oninput="renderTable()">
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('submittedAt')">Date/Time <span id="sort_submittedAt">↕</span></th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th onclick="sortBy('q1Rating')">Valued? <span id="sort_q1Rating">↕</span></th>
+              <th onclick="sortBy('q2Rating')">Ease <span id="sort_q2Rating">↕</span></th>
+              <th>Feedback</th>
+              <th>Nominated</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:#999;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="text-align:center;margin-top:20px;">
+        <a href="/feedbackhidden" style="color:#999;text-decoration:none;font-size:0.9rem;">← Back to form</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CONVEX_URL   = 'https://calculating-cat-557.convex.cloud';
+    const ADMIN_USER   = 'Admin';
+    const ADMIN_PASS   = '7021';
+
+    let allRows   = [];
+    let sortKey   = 'submittedAt';
+    let sortDir   = 'desc';
+
+    function getEmoji(v) { return v<=2?'😟':v<=4?'😞':v<=6?'😐':v<=8?'🙂':'😊'; }
+
+    function fmtDate(ts) {
+      return new Date(ts).toLocaleString('en-AU', {
+        timeZone: 'Australia/Sydney', day:'2-digit', month:'2-digit',
+        year:'2-digit', hour:'2-digit', minute:'2-digit'
+      });
+    }
+
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const u = document.getElementById('uname').value;
+      const p = document.getElementById('upass').value;
+      if (u === ADMIN_USER && p === ADMIN_PASS) {
+        document.getElementById('loginWrap').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        loadData();
+        setInterval(loadData, 30000); // auto-refresh every 30s
+      } else {
+        document.getElementById('loginError').textContent = 'Incorrect username or password.';
+      }
+    });
+
+    function logout() {
+      document.getElementById('loginWrap').style.display = 'flex';
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('uname').value = '';
+      document.getElementById('upass').value = '';
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(CONVEX_URL + '/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'businessFeedback:list', args: {}, format: 'json' }),
+        });
+        const json = await res.json();
+        allRows = json.value || [];
+        updateStats();
+        renderTable();
+      } catch (err) {
+        console.error('Failed to load data:', err);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('totalCount').textContent = allRows.length;
+      if (allRows.length) {
+        document.getElementById('avgQ1').textContent = (allRows.reduce((s,r) => s+r.q1Rating, 0) / allRows.length).toFixed(1);
+        document.getElementById('avgQ2').textContent = (allRows.reduce((s,r) => s+r.q2Rating, 0) / allRows.length).toFixed(1);
+      }
+    }
+
+    function sortBy(key) {
+      if (sortKey === key) { sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+      else { sortKey = key; sortDir = 'desc'; }
+      ['submittedAt','q1Rating','q2Rating'].forEach(k => {
+        document.getElementById('sort_'+k).textContent = k === sortKey ? (sortDir==='asc'?'↑':'↓') : '↕';
+      });
+      renderTable();
+    }
+
+    function renderTable() {
+      const q = document.getElementById('searchBar').value.toLowerCase();
+      let rows = allRows.filter(r => !q ||
+        (r.customerName||'').toLowerCase().includes(q) ||
+        (r.customerPhone||'').toLowerCase().includes(q) ||
+        (r.feedbackText||'').toLowerCase().includes(q) ||
+        (r.nominateTeam||'').toLowerCase().includes(q) ||
+        String(r.q1Rating).includes(q) || String(r.q2Rating).includes(q) ||
+        fmtDate(r.submittedAt).includes(q)
+      );
+      rows = rows.sort((a,b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+
+      const tbody = document.getElementById('tableBody');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#999;">No feedback yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td style="white-space:nowrap">${fmtDate(r.submittedAt)}</td>
+          <td>${r.customerName||'—'}</td>
+          <td>${r.customerPhone||'—'}</td>
+          <td style="text-align:center">${getEmoji(r.q1Rating)} ${r.q1Rating}</td>
+          <td style="text-align:center">${getEmoji(r.q2Rating)} ${r.q2Rating}</td>
+          <td style="max-width:200px">${r.feedbackText||'—'}</td>
+          <td>${r.nominateTeam||'—'}</td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>
