@@ -176,9 +176,58 @@ p {
 }
 
 /* Navigation */
-nav {
+/* ANNOUNCEMENT BANNER */
+.announcement-banner {
     position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1001;
+    height: 38px;
+    background: var(--primary);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(13, 82, 87, 0.3);
+}
+.banner-track {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    animation: bannerScroll 28s linear infinite;
+}
+@keyframes bannerScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+.banner-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 36px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: white;
+    font-family: inherit;
+}
+.banner-sep {
+    color: var(--lime);
+    opacity: 0.7;
+    font-size: 1rem;
+    font-weight: 900;
+    padding: 0 4px;
+}
+.banner-icon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+nav {
+    position: fixed;
+    top: 38px;
     width: 100%;
     z-index: 1000;
     background: rgba(250, 249, 246, 0.9);
