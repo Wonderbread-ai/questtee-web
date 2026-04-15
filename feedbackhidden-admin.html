@@ -102,6 +102,30 @@
         </table>
       </div>
 
+      <!-- EMAIL NOTIFICATION SETTINGS -->
+      <div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-top:24px;">
+        <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:6px;">📧 Email Notification Recipients</h2>
+        <p style="font-size:0.85rem;color:#666;margin-bottom:18px;">An email is sent to each address below whenever a new feedback is submitted. Leave a field blank to disable that recipient.</p>
+        <div style="display:grid;gap:10px;margin-bottom:16px;">
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Recipient 1</label>
+            <input type="email" id="emailRecipient1" placeholder="email@example.com" style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:8px;font-size:0.95rem;font-family:inherit;transition:border-color 0.2s;" onfocus="this.style.borderColor='#0D5257'" onblur="this.style.borderColor='#E0E0E0'">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Recipient 2</label>
+            <input type="email" id="emailRecipient2" placeholder="email@example.com" style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:8px;font-size:0.95rem;font-family:inherit;transition:border-color 0.2s;" onfocus="this.style.borderColor='#0D5257'" onblur="this.style.borderColor='#E0E0E0'">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Recipient 3</label>
+            <input type="email" id="emailRecipient3" placeholder="email@example.com (optional)" style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:8px;font-size:0.95rem;font-family:inherit;transition:border-color 0.2s;" onfocus="this.style.borderColor='#0D5257'" onblur="this.style.borderColor='#E0E0E0'">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button onclick="saveEmailSettings()" class="refresh-btn" style="padding:10px 24px;font-size:0.9rem;">Save Recipients</button>
+          <span id="emailSaveStatus" style="font-size:0.85rem;color:#28A745;display:none;">✓ Saved successfully</span>
+        </div>
+      </div>
+
       <div style="text-align:center;margin-top:20px;">
         <a href="/feedbackhidden.html" style="color:#999;text-decoration:none;font-size:0.9rem;">← Back to form</a>
       </div>
@@ -135,6 +159,7 @@
         document.getElementById('loginWrap').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
         loadData();
+        loadEmailSettings();
         setInterval(loadData, 30000); // auto-refresh every 30s
       } else {
         document.getElementById('loginError').textContent = 'Incorrect username or password.';
@@ -146,6 +171,47 @@
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('uname').value = '';
       document.getElementById('upass').value = '';
+    }
+
+    async function loadEmailSettings() {
+      try {
+        const res = await fetch(CONVEX_URL + '/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'businessFeedback:getSettings', args: {}, format: 'json' }),
+        });
+        const json = await res.json();
+        const s = json.value || {};
+        document.getElementById('emailRecipient1').value = s.recipient1 || '';
+        document.getElementById('emailRecipient2').value = s.recipient2 || '';
+        document.getElementById('emailRecipient3').value = s.recipient3 || '';
+      } catch (err) {
+        console.error('Failed to load email settings:', err);
+      }
+    }
+
+    async function saveEmailSettings() {
+      const r1 = document.getElementById('emailRecipient1').value.trim();
+      const r2 = document.getElementById('emailRecipient2').value.trim();
+      const r3 = document.getElementById('emailRecipient3').value.trim();
+      try {
+        const res = await fetch(CONVEX_URL + '/api/mutation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'businessFeedback:updateSettings',
+            args: { recipient1: r1, recipient2: r2, recipient3: r3 },
+            format: 'json',
+          }),
+        });
+        if (!res.ok) throw new Error('Save failed');
+        const status = document.getElementById('emailSaveStatus');
+        status.style.display = 'inline';
+        setTimeout(() => { status.style.display = 'none'; }, 3000);
+      } catch (err) {
+        console.error('Failed to save email settings:', err);
+        alert('Failed to save recipients. Please try again.');
+      }
     }
 
     async function loadData() {
