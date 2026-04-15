@@ -225,6 +225,15 @@ p {
     flex-shrink: 0;
 }
 
+.announcement-banner-inline {
+    width: 100%;
+    height: 38px;
+    background: var(--primary);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
 nav {
     position: fixed;
     top: 38px;
