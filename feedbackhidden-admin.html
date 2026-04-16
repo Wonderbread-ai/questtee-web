@@ -81,7 +81,10 @@
         <div class="stat"><div class="stat-value" id="avgQ2">—</div><div class="stat-label">Avg Ease of Transaction</div></div>
       </div>
 
-      <input type="text" class="search-bar" id="searchBar" placeholder="Search feedback..." oninput="renderTable()">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+        <input type="text" class="search-bar" id="searchBar" placeholder="Search feedback..." oninput="renderTable()" style="margin-bottom:0;flex:1;min-width:200px;">
+        <button class="refresh-btn" onclick="exportCSV()" style="white-space:nowrap;">⬇ Export to Excel</button>
+      </div>
 
       <div class="table-wrap">
         <table>
@@ -94,6 +97,7 @@
               <th onclick="sortBy('q2Rating')">Ease <span id="sort_q2Rating">↕</span></th>
               <th>Feedback</th>
               <th>Nominated</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="tableBody">
@@ -138,6 +142,7 @@
     const ADMIN_PASS   = '7021';
 
     let allRows   = [];
+    let hiddenIds = new Set();
     let sortKey   = 'submittedAt';
     let sortDir   = 'desc';
 
@@ -262,13 +267,15 @@
         return sortDir === 'asc' ? av - bv : bv - av;
       });
 
+      rows = rows.filter(r => !hiddenIds.has(r._id));
+
       const tbody = document.getElementById('tableBody');
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#999;">No feedback yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#999;">No feedback yet</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => `
-        <tr>
+        <tr id="row-${r._id}">
           <td style="white-space:nowrap">${fmtDate(r.submittedAt)}</td>
           <td>${r.customerName||'—'}</td>
           <td>${r.customerPhone||'—'}</td>
@@ -276,8 +283,38 @@
           <td style="text-align:center">${getEmoji(r.q2Rating)} ${r.q2Rating}</td>
           <td style="max-width:200px">${r.feedbackText||'—'}</td>
           <td>${r.nominateTeam||'—'}</td>
+          <td><button onclick="hideRow('${r._id}')" style="background:none;border:1px solid #ddd;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;color:#999;" title="Hide this row">✕</button></td>
         </tr>
       `).join('');
+    }
+
+    function hideRow(id) {
+      hiddenIds.add(id);
+      renderTable();
+    }
+
+    function exportCSV() {
+      const q = document.getElementById('searchBar').value.toLowerCase();
+      let rows = allRows.filter(r => !hiddenIds.has(r._id) && (!q ||
+        (r.customerName||'').toLowerCase().includes(q) ||
+        (r.customerPhone||'').toLowerCase().includes(q) ||
+        (r.feedbackText||'').toLowerCase().includes(q) ||
+        (r.nominateTeam||'').toLowerCase().includes(q) ||
+        String(r.q1Rating).includes(q) || String(r.q2Rating).includes(q)
+      ));
+      const escape = v => `"${String(v||'').replace(/"/g,'""')}"`;
+      const lines = [
+        ['Date/Time','Name','Phone','Valued Customer (1-10)','Ease of Transaction (1-10)','Feedback','Nominated Team Member'].map(escape).join(','),
+        ...rows.map(r => [
+          fmtDate(r.submittedAt), r.customerName||'', r.customerPhone||'',
+          r.q1Rating, r.q2Rating, r.feedbackText||'', r.nominateTeam||''
+        ].map(escape).join(','))
+      ];
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `feedback-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
     }
   </script>
 </body>
