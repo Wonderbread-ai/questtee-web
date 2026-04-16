@@ -37,7 +37,7 @@
     .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); background: #fff; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: var(--bg); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+    th { background: var(--bg); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 1; }
     th:hover { background: rgba(13,82,87,0.08); }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover { background: #fafafa; }
@@ -86,7 +86,7 @@
         <button class="refresh-btn" onclick="exportCSV()" style="white-space:nowrap;">⬇ Export to Excel</button>
       </div>
 
-      <div class="table-wrap">
+      <div class="table-wrap" style="max-height:520px;overflow-y:auto;">
         <table>
           <thead>
             <tr>
@@ -97,7 +97,6 @@
               <th onclick="sortBy('q2Rating')">Ease <span id="sort_q2Rating">↕</span></th>
               <th>Feedback</th>
               <th>Nominated</th>
-              <th></th>
             </tr>
           </thead>
           <tbody id="tableBody">
@@ -141,10 +140,9 @@
     const ADMIN_USER   = 'Admin';
     const ADMIN_PASS   = '7021';
 
-    let allRows   = [];
-    let hiddenIds = new Set();
-    let sortKey   = 'submittedAt';
-    let sortDir   = 'desc';
+    let allRows = [];
+    let sortKey = 'submittedAt';
+    let sortDir = 'desc';
 
     function getEmoji(v) { return v<=2?'😟':v<=4?'😞':v<=6?'😐':v<=8?'🙂':'😊'; }
 
@@ -267,15 +265,13 @@
         return sortDir === 'asc' ? av - bv : bv - av;
       });
 
-      rows = rows.filter(r => !hiddenIds.has(r._id));
-
       const tbody = document.getElementById('tableBody');
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#999;">No feedback yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#999;">No feedback yet</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => `
-        <tr id="row-${r._id}">
+        <tr>
           <td style="white-space:nowrap">${fmtDate(r.submittedAt)}</td>
           <td>${r.customerName||'—'}</td>
           <td>${r.customerPhone||'—'}</td>
@@ -283,25 +279,19 @@
           <td style="text-align:center">${getEmoji(r.q2Rating)} ${r.q2Rating}</td>
           <td style="max-width:200px">${r.feedbackText||'—'}</td>
           <td>${r.nominateTeam||'—'}</td>
-          <td><button onclick="hideRow('${r._id}')" style="background:none;border:1px solid #ddd;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;color:#999;" title="Hide this row">✕</button></td>
         </tr>
       `).join('');
     }
 
-    function hideRow(id) {
-      hiddenIds.add(id);
-      renderTable();
-    }
-
     function exportCSV() {
       const q = document.getElementById('searchBar').value.toLowerCase();
-      let rows = allRows.filter(r => !hiddenIds.has(r._id) && (!q ||
+      let rows = allRows.filter(r => !q ||
         (r.customerName||'').toLowerCase().includes(q) ||
         (r.customerPhone||'').toLowerCase().includes(q) ||
         (r.feedbackText||'').toLowerCase().includes(q) ||
         (r.nominateTeam||'').toLowerCase().includes(q) ||
         String(r.q1Rating).includes(q) || String(r.q2Rating).includes(q)
-      ));
+      );
       const escape = v => `"${String(v||'').replace(/"/g,'""')}"`;
       const lines = [
         ['Date/Time','Name','Phone','Valued Customer (1-10)','Ease of Transaction (1-10)','Feedback','Nominated Team Member'].map(escape).join(','),
