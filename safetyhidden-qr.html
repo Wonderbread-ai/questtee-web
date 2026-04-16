@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safety Report QR Code</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #F8F9FA;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px 36px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+      text-align: center;
+      max-width: 420px;
+      width: 100%;
+    }
+    .logo-circle {
+      width: 56px;
+      height: 56px;
+      background: #0D5257;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: #0D5257;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+    }
+    #qr-code {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    #qr-code canvas, #qr-code img {
+      border-radius: 12px;
+      border: 6px solid #0D5257;
+    }
+    .hint {
+      font-size: 0.82rem;
+      color: #999;
+      margin-bottom: 20px;
+    }
+    .print-btn {
+      margin-top: 20px;
+      padding: 12px 28px;
+      background: #0D5257;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s;
+    }
+    .print-btn:hover { background: #0A3D40; }
+    @media print {
+      body { background: white; }
+      .print-btn, .back-link { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-circle">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <path d="M15 3L27 9V15C27 21.6 21.6 27.3 15 29C8.4 27.3 3 21.6 3 15V9L15 3Z" fill="white" opacity="0.9"/>
+      </svg>
+    </div>
+    <h1>Safety Report</h1>
+    <p class="subtitle">Scan to submit a safety report</p>
+
+    <div id="qr-code"></div>
+
+    <p class="hint">Scan with your phone camera to open the form</p>
+
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    <div style="margin-top:16px;">
+      <a href="/safetyhidden-admin.html" style="color:#999;text-decoration:none;font-size:0.9rem;">← Back to Admin</a>
+    </div>
+  </div>
+
+  <script>
+    new QRCode(document.getElementById("qr-code"), {
+      text: "https://questtee.com/safetyhidden.html",
+      width: 280,
+      height: 280,
+      colorDark: "#0D5257",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  </script>
+</body>
+</html>

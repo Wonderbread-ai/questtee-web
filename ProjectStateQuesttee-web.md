@@ -1,5 +1,5 @@
 # Questtee Web — Project State & Handover
-**Last updated:** 2026-04-15 | **Updated by:** Michael + Claude (Cowork session)
+**Last updated:** 2026-04-16 | **Updated by:** Michael + Claude (Cowork session)
 
 ---
 
@@ -120,7 +120,10 @@ git push
 | `contact.html` | questtee.com/contact.html | Contact page |
 | `feedbackhidden.html` | questtee.com/feedbackhidden.html | Customer feedback form (internal, not linked from nav) |
 | `feedbackhidden-admin.html` | questtee.com/feedbackhidden-admin.html | Feedback admin dashboard — login: `Admin` / `7021` |
-| `feedbackhidden-qr.html` | questtee.com/feedbackhidden-qr.html | QR code version of feedback form (for printing) |
+| `feedbackhidden-qr.html` | questtee.com/feedbackhidden-qr.html | QR code page for feedback form (for printing) |
+| `safetyhidden.html` | questtee.com/safetyhidden.html | Safety hazard report form (internal, not linked from nav) |
+| `safetyhidden-admin.html` | questtee.com/safetyhidden-admin.html | Safety admin dashboard — login: `Admin` / `7021` |
+| `safetyhidden-qr.html` | questtee.com/safetyhidden-qr.html | QR code page for safety form (for printing) |
 
 **Note:** `PITCH-DECK.html` was briefly in this repo but removed 2026-04-15 — it is a private document, archived at `~/Documents/Claude/Projects/Questtee/old-to-be-deleted-by-Michael/PITCH-DECK.html` for Michael to review.
 
@@ -166,7 +169,37 @@ Form posts to Google Sheets via Google Apps Script Web App URL.
 
 ---
 
-## 10. Recent Changes Log
+## 10. Side Projects — Hosted on questtee.com But Unrelated to Questtee
+
+> ⚠️ **Important:** The pages below are independent tools built for a separate business (a retail store). They are hosted on questtee.com for convenience but have **no connection to the Questtee app, brand, or company**. Do not modify or delete these files when reviewing or updating the Questtee website. They are intentionally hidden (no nav links) and accessed only by direct URL or QR code.
+
+### Customer Feedback Form
+A simple customer satisfaction form for a retail store. Completely separate from Questtee's product.
+
+| Item | Detail |
+|---|---|
+| Pages | `feedbackhidden.html`, `feedbackhidden-admin.html`, `feedbackhidden-qr.html` |
+| Database | Convex `calculating-cat-557` — tables: `businessFeedback`, `feedbackSettings` |
+| Email notifications | Gmail SMTP via Nodemailer — env vars `GMAIL_USER` / `GMAIL_APP_PASS` set in Convex prod |
+| Admin login | `Admin` / `7021` |
+| Convex function file | `convex/convex/businessFeedback.ts`, `convex/convex/lib/feedbackEmail.ts` |
+
+### Safety Hazard Report Form
+A workplace safety reporting tool for the same retail store. Captures hazards, Great Save (LTR) events, equipment, and actions taken.
+
+| Item | Detail |
+|---|---|
+| Pages | `safetyhidden.html`, `safetyhidden-admin.html`, `safetyhidden-qr.html` |
+| Database | Convex `calculating-cat-557` — tables: `safetyReports`, `safetySettings` |
+| Email notifications | Same Gmail SMTP credentials as feedback form |
+| Admin login | `Admin` / `7021` |
+| Convex function file | `convex/convex/safetyReports.ts`, `convex/convex/lib/safetyEmail.ts` |
+
+**Storage note:** The HTML files live in the `questtee-web` GitHub repo (separate from `questtee-app`). The Convex functions and tables live in the shared `calculating-cat-557` Convex project but are completely isolated — no main app function reads or writes to these tables.
+
+---
+
+## 11. Recent Changes Log
 
 ### 2026-04-15 (Cowork session — Michael + Claude)
 - **Added scrolling announcement banner to `index.html`** — teal (`#0D5257`) background, white text, lime (`#BFFF40`) icons. Text: "Coming Soon to iOS · Coming Soon to Android". Uses JavaScript to auto-fill screen width seamlessly on all devices.
@@ -177,7 +210,16 @@ Form posts to Google Sheets via Google Apps Script Web App URL.
 
 ---
 
-## 11. Test Accounts (Mobile App)
+### 2026-04-16 (Cowork session — Michael + Claude)
+- **Completed feedback form email system** — switched from Resend to Gmail SMTP (Nodemailer). `GMAIL_USER` and `GMAIL_APP_PASS` set in Convex prod. Supports 3 configurable recipients via admin panel.
+- **Added feedback admin features** — CSV export, scrollable table with sticky headers, hide button (later removed in favour of scroll).
+- **Built safety report system** — `safetyhidden.html` (form with ambulance chevron stripe, Great Save / Hazard toggle, N/A buttons), `safetyhidden-admin.html` (dashboard with colour-coded badges), `safetyhidden-qr.html` (QR code page).
+- **Convex backend for safety** — added `safetyReports` and `safetySettings` tables to schema, created `safetyReports.ts` and `lib/safetyEmail.ts`.
+- **Documented side projects** — feedback and safety forms recorded as unrelated to Questtee in Section 10 of this file.
+
+---
+
+## 12. Test Accounts (Mobile App)
 
 | Role | Account |
 |---|---|
@@ -187,7 +229,7 @@ Form posts to Google Sheets via Google Apps Script Web App URL.
 
 ---
 
-## 12. Instructions for Future Claude Sessions
+## 13. Instructions for Future Claude Sessions
 
 1. **Both folders are pre-mounted in Cowork** — `questtee-web` and `Questtee` are directly accessible. No need to request directory access.
 2. **To push changes live:** Edit files → give Michael the `git add / commit / push` command → Vercel auto-deploys in ~30s.

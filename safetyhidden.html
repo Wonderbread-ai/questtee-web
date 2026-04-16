@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safety Report</title>
+  <style>
+    :root { --primary: #0D5257; --primary-dark: #0A3D40; --danger: #C0392B; --warning: #E67E22; --bg: #F8F9FA; --border: #E0E0E0; --text: #333; --text-light: #666; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; padding: 0 0 48px; }
+    .container { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+
+    /* Ambulance chevron stripe */
+    .ambulance-stripe {
+      width: 100%;
+      height: 22px;
+      background: repeating-linear-gradient(
+        -45deg,
+        #F2C12E,
+        #F2C12E 12px,
+        #0D5257 12px,
+        #0D5257 24px
+      );
+      margin-bottom: 28px;
+    }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 28px; }
+    .logo-circle { width: 52px; height: 52px; background: var(--primary); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .header h1 { font-size: 1.5rem; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+    .header p { font-size: 0.9rem; color: var(--text-light); }
+
+    /* Card */
+    .card { background: #fff; border-radius: 16px; padding: 28px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.07); margin-bottom: 16px; }
+
+    /* Form fields */
+    .field { margin-bottom: 22px; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 8px; line-height: 1.4; }
+    label .required { color: var(--danger); margin-left: 2px; }
+    label .sublabel { font-style: italic; font-weight: 400; color: var(--text-light); }
+    input[type="datetime-local"], textarea {
+      width: 100%; padding: 13px 14px; border: 2px solid var(--border); border-radius: 10px;
+      font-size: 0.95rem; font-family: inherit; color: var(--text);
+      transition: border-color 0.2s; background: #fff;
+    }
+    input[type="datetime-local"]:focus, textarea:focus { outline: none; border-color: var(--primary); }
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    textarea.small { min-height: 64px; }
+    textarea:disabled { background: #f5f5f5; color: #aaa; border-color: #e0e0e0; cursor: not-allowed; }
+
+    /* Character counter */
+    .char-count { text-align: right; font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+    .char-count.near { color: var(--warning); }
+    .char-count.over { color: var(--danger); }
+
+    /* N/A toggle */
+    .na-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .na-btn {
+      padding: 5px 14px; border: 2px solid var(--border); border-radius: 20px;
+      background: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 700;
+      color: #999; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .na-btn.active { border-color: var(--primary); background: #EAF4F4; color: var(--primary); }
+
+    /* Toggle */
+    .toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+    .toggle-btn {
+      padding: 14px 10px; border: 2px solid var(--border); border-radius: 10px;
+      background: #fff; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+      font-weight: 600; text-align: center; transition: all 0.2s; color: var(--text-light); line-height: 1.3;
+    }
+    .toggle-btn .toggle-icon { display: block; font-size: 1.4rem; margin-bottom: 4px; }
+    .toggle-btn.active-hazard { border-color: var(--warning); background: #FFF3E0; color: var(--warning); }
+    .toggle-btn.active-greatsave { border-color: var(--danger); background: #FDEDEC; color: var(--danger); }
+    .toggle-hint { font-size: 0.78rem; color: var(--text-light); margin-top: 8px; line-height: 1.4; }
+
+    /* Submit */
+    .btn-submit {
+      width: 100%; padding: 16px; background: var(--primary); color: #fff;
+      border: none; border-radius: 10px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: background 0.2s; margin-top: 8px;
+    }
+    .btn-submit:hover { background: var(--primary-dark); }
+    .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+
+    /* Thank You Screen */
+    #thankYou { display: none; text-align: center; padding: 48px 24px; }
+    .ty-icon { font-size: 3.5rem; margin-bottom: 16px; }
+    #thankYou h2 { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
+    #thankYou p { color: var(--text-light); font-size: 0.95rem; line-height: 1.6; }
+    .btn-another { margin-top: 24px; padding: 12px 28px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+
+    /* Error */
+    .error-msg { color: var(--danger); font-size: 0.85rem; margin-top: 12px; text-align: center; display: none; }
+
+    /* Admin link */
+    .admin-link { text-align: center; margin-top: 32px; }
+    .admin-link a { color: #ccc; text-decoration: none; font-size: 0.78rem; }
+    .admin-link a:hover { color: #999; }
+
+    @media (max-width: 400px) { .card { padding: 20px 16px; } }
+  </style>
+</head>
+<body>
+
+  <!-- Ambulance stripe -->
+  <div class="ambulance-stripe"></div>
+
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-circle">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <path d="M14 3L25 8.5V14C25 19.8 20.1 24.7 14 26C7.9 24.7 3 19.8 3 14V8.5L14 3Z" fill="white" opacity="0.9"/>
+        </svg>
+      </div>
+      <h1>Safety Report</h1>
+      <p>Help keep everyone safe by reporting hazards</p>
+    </div>
+
+    <!-- Form -->
+    <div id="formWrap">
+      <div class="card">
+
+        <div class="field">
+          <label>When did this occur?<span class="required">*</span></label>
+          <input type="datetime-local" id="occurredAt">
+        </div>
+
+        <div class="field">
+          <label>Is there an immediate need to stop work due to a risk of fatality or Life-Threatening Risk (LTR)?<span class="required">*</span></label>
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn" id="btnGreatSave" onclick="setType('great_save')">
+              <span class="toggle-icon">🚨</span>
+              Great Save<br><small style="font-weight:400;font-size:0.75rem;">(Stop work — LTR)</small>
+            </button>
+            <button type="button" class="toggle-btn" id="btnHazard" onclick="setType('hazard_report')">
+              <span class="toggle-icon">⚠️</span>
+              Hazard Report<br><small style="font-weight:400;font-size:0.75rem;">(No immediate threat)</small>
+            </button>
+          </div>
+          <p class="toggle-hint" id="toggleHint"></p>
+        </div>
+
+        <div class="field">
+          <label>Describe the hazard in detail<span class="required">*</span></label>
+          <textarea id="hazardDesc" maxlength="400" placeholder="Describe what you observed..." oninput="updateCount(this, 'countHazard', 400)"></textarea>
+          <div class="char-count" id="countHazard">0 / 400</div>
+        </div>
+
+        <div class="field">
+          <label>People involved</label>
+          <input type="text" id="peopleInvolved" maxlength="50" placeholder="Names of anyone involved" oninput="updateCount(this, 'countPeople', 50)" style="width:100%;padding:13px 14px;border:2px solid var(--border);border-radius:10px;font-size:0.95rem;font-family:inherit;transition:border-color 0.2s;" onfocus="this.style.borderColor='#0D5257'" onblur="this.style.borderColor='#E0E0E0'">
+          <div class="char-count" id="countPeople">0 / 50</div>
+        </div>
+
+        <div class="field">
+          <div class="na-row">
+            <label style="margin-bottom:0;">Equipment involved</label>
+            <button type="button" class="na-btn" id="naEquip" onclick="toggleNA('equipmentInvolved', 'naEquip', 'countEquip', 200)">N/A</button>
+          </div>
+          <textarea id="equipmentInvolved" class="small" maxlength="200" placeholder="List any equipment involved..." oninput="updateCount(this, 'countEquip', 200)"></textarea>
+          <div class="char-count" id="countEquip">0 / 200</div>
+        </div>
+
+        <div class="field">
+          <div class="na-row">
+            <label style="margin-bottom:0;">Items / Product involved <span class="sublabel">(fineline if applicable)</span></label>
+            <button type="button" class="na-btn" id="naItems" onclick="toggleNA('itemsInvolved', 'naItems', 'countItems', 200)">N/A</button>
+          </div>
+          <textarea id="itemsInvolved" class="small" maxlength="200" placeholder="List any items or products involved..." oninput="updateCount(this, 'countItems', 200)"></textarea>
+          <div class="char-count" id="countItems">0 / 200</div>
+        </div>
+
+        <div class="field">
+          <label>Actions Taken</label>
+          <textarea id="actionsTaken" maxlength="400" placeholder="What actions were taken to address the hazard?" oninput="updateCount(this, 'countActions', 400)"></textarea>
+          <div class="char-count" id="countActions">0 / 400</div>
+        </div>
+
+        <button class="btn-submit" onclick="submitForm()">Submit Safety Report</button>
+        <p class="error-msg" id="errorMsg">Please fill in all required fields.</p>
+
+      </div>
+    </div>
+
+    <!-- Thank You -->
+    <div id="thankYou">
+      <div class="ty-icon">🛡️</div>
+      <h2>Thank you for keeping you and your team safe.</h2>
+      <p>Your report has been submitted and the relevant team has been notified. Together we keep everyone safe.</p>
+      <button class="btn-another" onclick="resetForm()">Submit Another Report</button>
+    </div>
+
+    <!-- Admin link -->
+    <div class="admin-link">
+      <a href="/safetyhidden-admin.html">Admin</a>
+    </div>
+
+  </div>
+
+  <script>
+    const CONVEX_URL = 'https://calculating-cat-557.convex.cloud';
+    let reportType = null;
+    const naState = { equipmentInvolved: false, itemsInvolved: false };
+
+    function setType(type) {
+      reportType = type;
+      const gs = document.getElementById('btnGreatSave');
+      const hz = document.getElementById('btnHazard');
+      const hint = document.getElementById('toggleHint');
+      gs.className = 'toggle-btn' + (type === 'great_save' ? ' active-greatsave' : '');
+      hz.className = 'toggle-btn' + (type === 'hazard_report' ? ' active-hazard' : '');
+      if (type === 'great_save') {
+        hint.textContent = '🚨 Stop work immediately and ensure everyone is clear of the area before submitting this report.';
+        hint.style.color = '#C0392B';
+      } else {
+        hint.textContent = '⚠️ Record this hazard so it can be addressed before it becomes a risk.';
+        hint.style.color = '#E67E22';
+      }
+    }
+
+    function toggleNA(fieldId, btnId, countId, max) {
+      const field = document.getElementById(fieldId);
+      const btn   = document.getElementById(btnId);
+      naState[fieldId] = !naState[fieldId];
+      if (naState[fieldId]) {
+        field.value = '';
+        field.disabled = true;
+        btn.classList.add('active');
+        document.getElementById(countId).textContent = 'N/A';
+        document.getElementById(countId).className = 'char-count';
+      } else {
+        field.disabled = false;
+        btn.classList.remove('active');
+        document.getElementById(countId).textContent = '0 / ' + max;
+      }
+    }
+
+    function updateCount(el, countId, max) {
+      const len = el.value.length;
+      const counter = document.getElementById(countId);
+      counter.textContent = len + ' / ' + max;
+      counter.className = 'char-count' + (len >= max ? ' over' : len >= max * 0.85 ? ' near' : '');
+    }
+
+    async function submitForm() {
+      const occurredAt = document.getElementById('occurredAt').value;
+      const hazardDesc = document.getElementById('hazardDesc').value.trim();
+      const errorMsg   = document.getElementById('errorMsg');
+
+      if (!occurredAt || !reportType || !hazardDesc) {
+        errorMsg.style.display = 'block';
+        return;
+      }
+      errorMsg.style.display = 'none';
+
+      const btn = document.querySelector('.btn-submit');
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+
+      try {
+        await fetch(CONVEX_URL + '/api/mutation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'safetyReports:submit',
+            args: {
+              occurredAt:        new Date(occurredAt).getTime(),
+              reportType:        reportType,
+              hazardDesc:        hazardDesc,
+              peopleInvolved:    document.getElementById('peopleInvolved').value.trim(),
+              equipmentInvolved: naState.equipmentInvolved ? 'N/A' : document.getElementById('equipmentInvolved').value.trim(),
+              itemsInvolved:     naState.itemsInvolved     ? 'N/A' : document.getElementById('itemsInvolved').value.trim(),
+              actionsTaken:      document.getElementById('actionsTaken').value.trim(),
+            },
+            format: 'json',
+          }),
+        });
+        document.getElementById('formWrap').style.display = 'none';
+        document.getElementById('thankYou').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Submit Safety Report';
+        alert('Something went wrong. Please try again.');
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('formWrap').style.display = 'block';
+      document.getElementById('thankYou').style.display = 'none';
+      document.getElementById('occurredAt').value = '';
+      document.getElementById('hazardDesc').value = '';
+      document.getElementById('peopleInvolved').value = '';
+      ['equipmentInvolved', 'itemsInvolved'].forEach(id => {
+        const field = document.getElementById(id);
+        field.value = '';
+        field.disabled = false;
+        naState[id] = false;
+      });
+      document.getElementById('naEquip').classList.remove('active');
+      document.getElementById('naItems').classList.remove('active');
+      document.getElementById('actionsTaken').value = '';
+      reportType = null;
+      document.getElementById('btnGreatSave').className = 'toggle-btn';
+      document.getElementById('btnHazard').className = 'toggle-btn';
+      document.getElementById('toggleHint').textContent = '';
+      document.getElementById('countHazard').textContent  = '0 / 400';
+      document.getElementById('countPeople').textContent  = '0 / 50';
+      document.getElementById('countEquip').textContent   = '0 / 200';
+      document.getElementById('countItems').textContent   = '0 / 200';
+      document.getElementById('countActions').textContent = '0 / 400';
+      document.querySelector('.btn-submit').disabled = false;
+      document.querySelector('.btn-submit').textContent = 'Submit Safety Report';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

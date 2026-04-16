@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safety Admin</title>
+  <style>
+    :root { --primary: #0D5257; --primary-dark: #0A3D40; --danger: #C0392B; --warning: #E67E22; --bg: #F8F9FA; --text: #333; --text-light: #666; --border: #E0E0E0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; }
+    /* Login */
+    .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .login-card { background: #fff; border-radius: 16px; padding: 40px 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 380px; text-align: center; }
+    .lock-icon { font-size: 3rem; margin-bottom: 16px; }
+    .login-card h2 { font-size: 1.5rem; margin-bottom: 24px; font-weight: 700; }
+    .field { margin-bottom: 16px; text-align: left; }
+    .field input { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; transition: border-color 0.2s; }
+    .field input:focus { outline: none; border-color: var(--primary); }
+    .btn-primary { width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .error-msg { color: #DC3545; margin-top: 12px; font-size: 0.9rem; }
+    .back-link { margin-top: 20px; }
+    .back-link a { color: var(--text-light); text-decoration: none; font-size: 0.9rem; }
+    /* Dashboard */
+    #dashboard { display: none; }
+    .dash-container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .dash-header h1 { font-size: 1.5rem; font-weight: 700; }
+    .btn-logout { padding: 8px 18px; background: transparent; border: 2px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--primary); color: var(--primary); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+    .stat-value.danger { color: var(--danger); }
+    .stat-value.warning { color: var(--warning); }
+    .stat-label { font-size: 0.8rem; color: var(--text-light); margin-top: 4px; }
+    .search-bar { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; transition: border-color 0.2s; }
+    .search-bar:focus { outline: none; border-color: var(--primary); }
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); background: #fff; max-height: 520px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { padding: 11px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: var(--bg); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 1; }
+    th:hover { background: rgba(13,82,87,0.08); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+    .badge-greatsave { background: #FDEDEC; color: var(--danger); border: 1px solid #F5B7B1; }
+    .badge-hazard { background: #FFF3E0; color: var(--warning); border: 1px solid #FAD7A0; }
+    .refresh-btn { padding: 8px 16px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    .refresh-btn:hover { background: var(--primary-dark); }
+    .truncate { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 600px) { .stats { grid-template-columns: 1fr 1fr; } th, td { padding: 9px 6px; font-size: 0.8rem; } }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div class="login-wrap" id="loginWrap">
+    <div class="login-card">
+      <div class="lock-icon">🔒</div>
+      <h2>Safety Admin</h2>
+      <form id="loginForm">
+        <div class="field"><input type="text" id="uname" placeholder="Username" autocomplete="username"></div>
+        <div class="field"><input type="password" id="upass" placeholder="Password" autocomplete="current-password"></div>
+        <button type="submit" class="btn-primary">Login</button>
+        <p class="error-msg" id="loginError"></p>
+      </form>
+      <div class="back-link"><a href="/safetyhidden.html">← Back to form</a></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="dash-container">
+      <div class="dash-header">
+        <h1>🛡️ Safety Dashboard</h1>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <a href="/safetyhidden-qr.html" target="_blank" class="refresh-btn" style="text-decoration:none;">⬛ QR Code</a>
+          <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+          <button class="btn-logout" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-value" id="totalCount">—</div><div class="stat-label">Total Reports</div></div>
+        <div class="stat"><div class="stat-value danger" id="greatSaveCount">—</div><div class="stat-label">🚨 Great Saves (LTR)</div></div>
+        <div class="stat"><div class="stat-value warning" id="hazardCount">—</div><div class="stat-label">⚠️ Hazard Reports</div></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+        <input type="text" class="search-bar" id="searchBar" placeholder="Search reports…" oninput="renderTable()" style="margin-bottom:0;flex:1;min-width:200px;">
+        <button class="refresh-btn" onclick="exportCSV()" style="white-space:nowrap;">⬇ Export to Excel</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('submittedAt')">Submitted <span id="sort_submittedAt">↕</span></th>
+              <th onclick="sortBy('occurredAt')">Occurred <span id="sort_occurredAt">↕</span></th>
+              <th onclick="sortBy('reportType')">Type <span id="sort_reportType">↕</span></th>
+              <th>Hazard Description</th>
+              <th>People</th>
+              <th>Equipment</th>
+              <th>Items/Product</th>
+              <th>Actions Taken</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="8" style="text-align:center;padding:40px;color:#999;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- EMAIL NOTIFICATION SETTINGS -->
+      <div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-top:24px;">
+        <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:6px;">📧 Email Notification Recipients</h2>
+        <p style="font-size:0.85rem;color:#666;margin-bottom:18px;">An email is sent to each address below whenever a new safety report is submitted. Leave a field blank to disable that recipient.</p>
+        <div style="display:grid;gap:10px;margin-bottom:16px;">
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Recipient 1</label>
+            <input type="email" id="emailRecipient1" placeholder="email@example.com" style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:8px;font-size:0.95rem;font-family:inherit;" onfocus="this.style.borderColor='#0D5257'" onblur="this.style.borderColor='#E0E0E0'">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Recipient 2</label>
+            <input type="email" id="emailRecipient2" placeholder="email@example.com" style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:8px;font-size:0.95rem;font-family:inherit;" onfocus="this.style.borderColor='#0D5257'" onblur="this.style.borderColor='#E0E0E0'">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Recipient 3</label>
+            <input type="email" id="emailRecipient3" placeholder="email@example.com (optional)" style="width:100%;padding:12px;border:2px solid #E0E0E0;border-radius:8px;font-size:0.95rem;font-family:inherit;" onfocus="this.style.borderColor='#0D5257'" onblur="this.style.borderColor='#E0E0E0'">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button onclick="saveEmailSettings()" class="refresh-btn" style="padding:10px 24px;font-size:0.9rem;">Save Recipients</button>
+          <span id="emailSaveStatus" style="font-size:0.85rem;color:#28A745;display:none;">✓ Saved successfully</span>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:20px;">
+        <a href="/safetyhidden.html" style="color:#999;text-decoration:none;font-size:0.9rem;">← Back to form</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CONVEX_URL = 'https://calculating-cat-557.convex.cloud';
+    const ADMIN_USER = 'Admin';
+    const ADMIN_PASS = '7021';
+
+    let allRows = [];
+    let sortKey = 'submittedAt';
+    let sortDir = 'desc';
+
+    function fmtDate(ts) {
+      return new Date(ts).toLocaleString('en-AU', {
+        timeZone: 'Australia/Sydney', day:'2-digit', month:'2-digit',
+        year:'2-digit', hour:'2-digit', minute:'2-digit'
+      });
+    }
+
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const u = document.getElementById('uname').value;
+      const p = document.getElementById('upass').value;
+      if (u.toLowerCase() === ADMIN_USER.toLowerCase() && p === ADMIN_PASS) {
+        document.getElementById('loginWrap').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        loadData();
+        loadEmailSettings();
+        setInterval(loadData, 30000);
+      } else {
+        document.getElementById('loginError').textContent = 'Incorrect username or password.';
+      }
+    });
+
+    function logout() {
+      document.getElementById('loginWrap').style.display = 'flex';
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('uname').value = '';
+      document.getElementById('upass').value = '';
+    }
+
+    async function loadEmailSettings() {
+      try {
+        const res = await fetch(CONVEX_URL + '/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'safetyReports:getSettings', args: {}, format: 'json' }),
+        });
+        const json = await res.json();
+        const s = json.value || {};
+        document.getElementById('emailRecipient1').value = s.recipient1 || '';
+        document.getElementById('emailRecipient2').value = s.recipient2 || '';
+        document.getElementById('emailRecipient3').value = s.recipient3 || '';
+      } catch (err) { console.error('Failed to load email settings:', err); }
+    }
+
+    async function saveEmailSettings() {
+      const r1 = document.getElementById('emailRecipient1').value.trim();
+      const r2 = document.getElementById('emailRecipient2').value.trim();
+      const r3 = document.getElementById('emailRecipient3').value.trim();
+      try {
+        const res = await fetch(CONVEX_URL + '/api/mutation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'safetyReports:updateSettings', args: { recipient1: r1, recipient2: r2, recipient3: r3 }, format: 'json' }),
+        });
+        if (!res.ok) throw new Error('Save failed');
+        const status = document.getElementById('emailSaveStatus');
+        status.style.display = 'inline';
+        setTimeout(() => { status.style.display = 'none'; }, 3000);
+      } catch (err) { alert('Failed to save recipients. Please try again.'); }
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(CONVEX_URL + '/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'safetyReports:list', args: {}, format: 'json' }),
+        });
+        const json = await res.json();
+        allRows = json.value || [];
+        updateStats();
+        renderTable();
+      } catch (err) { console.error('Failed to load data:', err); }
+    }
+
+    function updateStats() {
+      document.getElementById('totalCount').textContent = allRows.length;
+      document.getElementById('greatSaveCount').textContent = allRows.filter(r => r.reportType === 'great_save').length;
+      document.getElementById('hazardCount').textContent = allRows.filter(r => r.reportType === 'hazard_report').length;
+    }
+
+    function sortBy(key) {
+      if (sortKey === key) { sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+      else { sortKey = key; sortDir = 'desc'; }
+      ['submittedAt','occurredAt','reportType'].forEach(k => {
+        document.getElementById('sort_' + k).textContent = k === sortKey ? (sortDir === 'asc' ? '↑' : '↓') : '↕';
+      });
+      renderTable();
+    }
+
+    function renderTable() {
+      const q = document.getElementById('searchBar').value.toLowerCase();
+      let rows = allRows.filter(r => !q ||
+        (r.hazardDesc||'').toLowerCase().includes(q) ||
+        (r.peopleInvolved||'').toLowerCase().includes(q) ||
+        (r.equipmentInvolved||'').toLowerCase().includes(q) ||
+        (r.itemsInvolved||'').toLowerCase().includes(q) ||
+        (r.actionsTaken||'').toLowerCase().includes(q) ||
+        (r.reportType||'').toLowerCase().includes(q) ||
+        fmtDate(r.submittedAt).includes(q)
+      );
+      rows = rows.sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+
+      const tbody = document.getElementById('tableBody');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#999;">No reports yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td style="white-space:nowrap">${fmtDate(r.submittedAt)}</td>
+          <td style="white-space:nowrap">${fmtDate(r.occurredAt)}</td>
+          <td>${r.reportType === 'great_save'
+            ? '<span class="badge badge-greatsave">🚨 Great Save</span>'
+            : '<span class="badge badge-hazard">⚠️ Hazard</span>'}</td>
+          <td class="truncate" title="${(r.hazardDesc||'').replace(/"/g,'&quot;')}">${r.hazardDesc||'—'}</td>
+          <td>${r.peopleInvolved||'—'}</td>
+          <td class="truncate" title="${(r.equipmentInvolved||'').replace(/"/g,'&quot;')}">${r.equipmentInvolved||'—'}</td>
+          <td class="truncate" title="${(r.itemsInvolved||'').replace(/"/g,'&quot;')}">${r.itemsInvolved||'—'}</td>
+          <td class="truncate" title="${(r.actionsTaken||'').replace(/"/g,'&quot;')}">${r.actionsTaken||'—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportCSV() {
+      const q = document.getElementById('searchBar').value.toLowerCase();
+      let rows = allRows.filter(r => !q ||
+        (r.hazardDesc||'').toLowerCase().includes(q) ||
+        (r.peopleInvolved||'').toLowerCase().includes(q) ||
+        (r.reportType||'').toLowerCase().includes(q)
+      );
+      const escape = v => `"${String(v||'').replace(/"/g,'""')}"`;
+      const lines = [
+        ['Submitted','Occurred','Type','Hazard Description','People Involved','Equipment Involved','Items/Product Involved','Actions Taken'].map(escape).join(','),
+        ...rows.map(r => [
+          fmtDate(r.submittedAt), fmtDate(r.occurredAt),
+          r.reportType === 'great_save' ? 'Great Save (LTR)' : 'Hazard Report',
+          r.hazardDesc||'', r.peopleInvolved||'',
+          r.equipmentInvolved||'', r.itemsInvolved||'', r.actionsTaken||''
+        ].map(escape).join(','))
+      ];
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `safety-reports-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+  </script>
+</body>
+</html>
