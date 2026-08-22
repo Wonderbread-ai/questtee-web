@@ -238,3 +238,9 @@ A workplace safety reporting tool for the same retail store. Captures hazards, G
 5. **Static site only:** No React, no frameworks — plain HTML/CSS/JS.
 6. **Check `PROJECT_HANDOVER.md`** for additional agent guidance and troubleshooting notes.
 7. **Feedback admin** is at `/feedbackhidden-admin.html` — login `Admin` / `7021`. Data stored in Convex `businessFeedback` table on deployment `calculating-cat-557`.
+
+### 2026-08-22 (Cowork session — Michael + Claude)
+- **Retired the feedback form** — Bunnings Mittagong moved customer feedback collection to the QR code on the receipt (company policy change). `feedbackhidden.html` no longer shows the submission form; it now shows a static "Thank You For Your Support" message that points customers to the receipt QR code, plus a discreet Admin link.
+- **No data touched** — all 3+ months of existing feedback stays in the Convex `businessFeedback` table, untouched and still reviewable at `/feedbackhidden-admin.html`.
+- **QR code unchanged** — the physical QR still encodes `https://questtee.com/feedbackhidden.html` (confirmed via `feedbackhidden-qr.html`), so nothing needs reprinting — only the page behind that URL changed.
+- **Note:** an older, unrelated prototype of this same feedback app (Express + SQLite, Mac-mini hosted, Cloudflare quick tunnel) also exists at `~/Documents/Claude/Projects/Feedback` — it predates this Convex/Vercel build and is not live. Its quick-tunnel URL is dead. Do not confuse it with the live `questtee-web` version.
