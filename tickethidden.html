@@ -155,7 +155,7 @@
     background:var(--card);
     border:1px solid var(--ink);
     display:grid;
-    grid-template-rows:minmax(0,6fr) minmax(0,5fr) minmax(0,var(--was-fr,0fr)) minmax(0,84fr) minmax(0,5fr);
+    grid-template-rows:minmax(0,6fr) minmax(0,3fr) minmax(0,var(--was-fr,0fr)) minmax(0,79fr) minmax(0,5fr) minmax(0,7fr);
     padding:0;
     overflow:hidden;
   }
@@ -493,6 +493,7 @@
             <span class="fineline-text" id="outFine"></span>
             <svg id="barcode"></svg>
           </div>
+          <div class="row-blank-bottom" aria-hidden="true"></div>
         </div>
       </div>
       <p class="placeholder-note">A4 ratio. The price auto-sizes to fill the ticket at any length. Fineline and barcode are optional; the "was" price shows only when enabled.</p>
