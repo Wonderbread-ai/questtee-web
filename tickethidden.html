@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Ticket Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Nanum+Pen+Script&family=Architects+Daughter&family=Just+Another+Hand&family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<style>
+  :root{
+    --paper:#F0EDE6;
+    --panel:#FBFAF7;
+    --ink:#15181B;
+    --ink-soft:#565A5E;
+    --rule:#D8D3C8;
+    --signal:#B23A22;
+    --card:#FCFBF8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    text-transform:uppercase;
+  }
+  .app{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 20px 60px;
+  }
+  header{
+    margin-bottom:24px;
+    padding-bottom:18px;
+    border-bottom:1px solid var(--rule);
+  }
+  header h1{
+    font-family:'Permanent Marker','Poppins','Arial Black','Helvetica Neue',sans-serif;
+    font-weight:800;
+    font-size:clamp(22px,4vw,30px);
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    margin:0;
+    color:var(--ink-soft);
+    font-size:14px;
+    max-width:52ch;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:28px;
+    align-items:start;
+  }
+  @media (max-width:820px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* ---- form panel ---- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--rule);
+    padding:22px;
+  }
+  .field{
+    margin-bottom:18px;
+  }
+  .field label{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .field label .hint{
+    font-weight:400;
+    color:var(--ink-soft);
+    font-size:12px;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:10px 11px;
+    border:1px solid var(--rule);
+    background:#fff;
+    font-family:'Inter',sans-serif;
+    font-size:15px;
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{
+    outline:2px solid var(--ink);
+    outline-offset:1px;
+  }
+  .field.invalid input{
+    border-color:var(--signal);
+  }
+  .error-msg{
+    color:var(--signal);
+    font-size:12px;
+    margin-top:5px;
+    display:none;
+  }
+  .field.invalid .error-msg{display:block;}
+
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:8px;
+  }
+  .checkline input{width:auto;}
+
+  .actions{
+    display:flex;
+    gap:10px;
+    margin-top:22px;
+    padding-top:18px;
+    border-top:1px solid var(--rule);
+  }
+  button{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    padding:11px 16px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:#fff;
+    cursor:pointer;
+  }
+  button.secondary{
+    background:transparent;
+    color:var(--ink);
+  }
+  button:hover{opacity:0.85;}
+  button:focus-visible{outline:2px solid var(--signal); outline-offset:2px;}
+
+  /* ---- ticket preview ---- */
+  .preview-wrap{
+    display:flex;
+    justify-content:center;
+    padding:20px 10px;
+  }
+  .ticket-frame{
+    width:100%;
+    max-width:340px;
+    aspect-ratio:210/297;
+    container-type:size;
+    background:var(--card);
+    border:1px solid var(--ink);
+    display:grid;
+    grid-template-rows:minmax(0,6fr) minmax(0,5fr) minmax(0,var(--was-fr,0fr)) minmax(0,84fr) minmax(0,5fr);
+    padding:0;
+    overflow:hidden;
+  }
+
+  .row-desc{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 6cqw;
+    overflow:hidden;
+  }
+  .row-desc span{
+    font-family:'Permanent Marker','Poppins','Arial Black','Helvetica Neue',sans-serif;
+    font-size:5.4cqh;
+    line-height:1;
+    font-weight:600;
+    color:var(--ink-soft);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    text-align:center;
+    width:100%;
+  }
+
+  .row-was{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    padding:0 6cqw;
+    overflow:hidden;
+  }
+  .row-was span{
+    font-family:'Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
+    font-size:5cqh;
+    color:var(--signal);
+    text-decoration:line-through;
+    white-space:nowrap;
+    font-weight:400;
+  }
+
+  .row-now{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .now-price{
+    font-family:'Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
+    font-weight:400;
+    line-height:1;
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    white-space:nowrap;
+    transform-origin:center;
+  }
+  .now-price .sym{
+    font-size:12cqh;
+    align-self:flex-start;
+    margin-top:4.7cqh;
+    margin-right:1cqw;
+  }
+  .dollars-svg{
+    overflow:visible;
+    flex-shrink:0;
+  }
+  .dollars-svg text{
+    font-family:'Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
+    font-size:200px;
+    fill:var(--ink);
+    stroke:var(--card);
+    stroke-width:7;
+    paint-order:fill stroke;
+  }
+  .now-price .cents{
+    font-size:15cqh;
+    align-self:flex-start;
+    margin-top:4.7cqh;
+    margin-left:0.6cqw;
+  }
+  .now-price .cents[hidden]{display:none;}
+
+  .row-fine{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:3cqw;
+    padding:0 5cqw;
+  }
+  .row-fine .fineline-text{
+    font-family:'Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
+    font-size:1.25cqh;
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink-soft);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .row-fine svg{
+    max-width:42%;
+    margin-left:auto;
+  }
+
+  .placeholder-note{
+    text-align:center;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:14px;
+  }
+
+  .row-desc span.is-placeholder{
+    opacity:0.35;
+  }
+
+  #diagBox{
+    margin-top:18px;
+    border:1px solid var(--rule);
+    padding:10px 12px;
+    background:var(--panel);
+    font-size:12px;
+  }
+  #diagBox summary{
+    cursor:pointer;
+    font-weight:600;
+  }
+  #diagBox pre{
+    white-space:pre-wrap;
+    word-break:break-word;
+    font-size:11px;
+    line-height:1.5;
+    margin:10px 0;
+    color:var(--ink);
+  }
+  #diagBox button{
+    padding:8px 12px;
+    font-size:12px;
+  }
+
+  /* ---- result overlay (shown after building a ticket) ---- */
+  #resultOverlay{
+    position:fixed;
+    inset:0;
+    background:rgba(21,24,27,0.82);
+    z-index:9999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    overflow:auto;
+  }
+  #resultOverlay .result-inner{
+    max-width:420px;
+    width:100%;
+    text-align:center;
+  }
+  #resultOverlay .result-hint{
+    color:#fff;
+    font-size:14px;
+    margin:0 0 10px;
+    line-height:1.4;
+  }
+  #resultOverlay .result-img{
+    width:100%;
+    height:auto;
+    background:#fff;
+    display:block;
+    border-radius:4px;
+  }
+  #resultOverlay .result-actions{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    margin-top:12px;
+    flex-wrap:wrap;
+  }
+  #resultOverlay .result-btn{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    padding:10px 16px;
+    border:1px solid #fff;
+    background:transparent;
+    color:#fff;
+    text-decoration:none;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  #resultOverlay .result-close{
+    background:#fff;
+    color:var(--ink);
+  }
+
+  /* ---- print: ticket only, no borders, exactly one A4 page ---- */
+  @media print{
+    @page{
+      size:A4 portrait;
+      margin:0;
+    }
+    html,body{
+      margin:0 !important;
+      padding:0 !important;
+      width:100%;
+      height:100%;
+      background:#fff !important;
+      overflow:hidden !important;
+    }
+    /* hide everything except the ticket */
+    header,
+    #ticketForm,
+    .panel,
+    .placeholder-note,
+    .row-desc span.is-placeholder{
+      display:none !important;
+    }
+    .app{
+      max-width:none !important;
+      margin:0 !important;
+      padding:0 !important;
+    }
+    .layout{
+      display:block !important;
+      gap:0 !important;
+    }
+    .preview-wrap{
+      display:block !important;
+      padding:0 !important;
+      margin:0 !important;
+    }
+    .ticket-frame{
+      /* width fills the page; height derives from the A4 ratio so the shape is exact.
+         (100vh is unreliable here — some print engines resolve it against the screen
+         viewport rather than the page box, which distorts the ticket.) */
+      width:100% !important;
+      height:auto !important;
+      aspect-ratio:210/297 !important;
+      max-width:none !important;
+      margin:0 !important;
+      border:none !important;          /* no border when printing */
+      background:#fff !important;
+      --card:#ffffff;                  /* keeps the glyph stroke matching the paper */
+      break-inside:avoid;
+      page-break-inside:avoid;
+      overflow:hidden;
+    }
+    /* nothing should spill onto a second page */
+    .app, .layout, .preview-wrap, .ticket-frame{
+      break-after:avoid;
+      page-break-after:avoid;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="bootErr" style="display:none;position:relative;z-index:99999;background:#B23A22;color:#fff;padding:12px 14px;font:12px/1.5 -apple-system,system-ui,sans-serif;white-space:pre-wrap;word-break:break-word;text-transform:none;"></div>
+<script>
+/* Early error trap — runs BEFORE the main script, so it catches even a parse
+   error there and shows the exact message on screen. */
+(function(){
+  var box = document.getElementById('bootErr');
+  var seen = [];
+  function show(msg){
+    seen.push(msg);
+    if (!box) return;
+    box.style.display = 'block';
+    box.textContent = 'SCRIPT ERROR (screenshot this):\n\n' + seen.join('\n\n');
+  }
+  window.addEventListener('error', function(e){
+    if (e && e.message){
+      show(e.message + (e.filename ? '\n' + String(e.filename).split('/').pop() : '') +
+           (e.lineno ? ' line ' + e.lineno + ':' + (e.colno || 0) : ''));
+    } else if (e && e.target && e.target.src){
+      show('Failed to load: ' + e.target.src);
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', function(e){
+    show('Unhandled promise: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+  });
+  window.__bootSeen = seen;
+})();
+</script>
+<div class="app">
+  <header>
+    <h1>Ticket builder</h1>
+    <p>Fill in the details on the left — the tag on the right updates as you type, sized and scaled to the same proportions it will print at.</p>
+  </header>
+
+  <div class="layout">
+    <form class="panel" id="ticketForm" novalidate>
+      <div class="field">
+        <label for="description">Description <span class="hint">product & side</span></label>
+        <input type="text" id="description" placeholder="e.g. Men's running shoe — aisle 4" maxlength="60">
+      </div>
+
+      <div class="checkline">
+        <input type="checkbox" id="showWas">
+        <label for="showWas" style="margin:0;">Show a "was" price</label>
+      </div>
+      <div class="field" id="wasField" style="display:none;">
+        <label for="wasPrice">Was price</label>
+        <input type="number" id="wasPrice" step="0.01" min="0" placeholder="0.00">
+      </div>
+
+      <div class="field" id="nowField">
+        <label for="nowPrice">Now price <span class="hint">required</span></label>
+        <input type="number" id="nowPrice" step="0.01" min="0" placeholder="0.00" required>
+        <div class="error-msg">Enter a now price to generate the ticket.</div>
+      </div>
+
+      <div class="field" id="fineField">
+        <label for="fineline">Fineline <span class="hint">optional — item number / barcode</span></label>
+        <input type="text" id="fineline" placeholder="e.g. 7 40123 45678">
+      </div>
+
+      <div class="actions">
+        <button type="button" id="downloadBtn">Save PNG</button>
+        <button type="button" id="shareBtn" class="secondary">Share / Email</button>
+        <button type="button" id="printBtn" class="secondary">Save PDF</button>
+      </div>
+    </form>
+
+    <div>
+      <div class="preview-wrap">
+        <div class="ticket-frame" id="ticket">
+          <div class="row-desc"><span id="outDesc">Product description</span></div>
+          <div class="row-gap"></div>
+          <div class="row-was"><span id="outWas"></span></div>
+          <div class="row-now">
+            <div class="now-price">
+              <span class="sym">$</span><svg class="dollars-svg" id="dollarsSvg"><text id="outDollars" x="0" y="0">0</text></svg><span class="cents" id="outCents">00</span>
+            </div>
+          </div>
+          <div class="row-fine">
+            <span class="fineline-text" id="outFine"></span>
+            <svg id="barcode"></svg>
+          </div>
+        </div>
+      </div>
+      <p class="placeholder-note">A4 ratio. The price auto-sizes to fill the ticket at any length. Fineline and barcode are optional; the "was" price shows only when enabled.</p>
+      <details id="diagBox">
+        <summary>Diagnostics</summary>
+        <pre id="diagOut">running…</pre>
+        <button type="button" id="diagCopy" class="secondary">Copy diagnostics</button>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+window.__step = 'script-start';
+const el = id => document.getElementById(id);
+const ticket = el('ticket');
+
+const description = el('description');
+const showWas = el('showWas');
+const wasField = el('wasField');
+const wasPrice = el('wasPrice');
+const nowPrice = el('nowPrice');
+const fineline = el('fineline');
+
+const outDesc = el('outDesc');
+const outWas = el('outWas');
+const outDollars = el('outDollars');
+const outCents = el('outCents');
+const outFine = el('outFine');
+const dollarsSvgEl = el('dollarsSvg');
+const barcodeSvg = el('barcode');
+
+window.__step='defs';
+function formatMoney(value){
+  const num = parseFloat(value);
+  if (isNaN(num) || num < 0) return {dollars:'0', cents:'00', hasCents:false};
+  const dollars = Math.floor(num);
+  const centsNum = Math.round((num - dollars) * 100);
+  return {
+    dollars: dollars.toString(),
+    cents: centsNum.toString().padStart(2,'0'),
+    hasCents: centsNum !== 0
+  };
+}
+
+function renderBarcode(value){
+  if (!value){
+    barcodeSvg.innerHTML = '';
+    return;
+  }
+  const rowHeight = barcodeSvg.parentElement.clientHeight || 40;
+  const bottomGap = rowHeight * 0.15;
+  const barHeight = Math.max(6, (rowHeight - bottomGap) * 0.32);
+  barcodeSvg.style.marginBottom = bottomGap + 'px';
+  try{
+    JsBarcode(barcodeSvg, value, {
+      format: 'CODE128',
+      displayValue: false,
+      margin: 0,
+      height: barHeight,
+      lineColor: '#15181B'
+    });
+  }catch(e){
+    barcodeSvg.innerHTML = '';
+  }
+}
+
+function validateField(inputEl, isValid){
+  const field = inputEl.closest('.field');
+  field.classList.toggle('invalid', !isValid);
+}
+
+function update(){
+  // description
+  const descVal = description.value.trim();
+  outDesc.textContent = descVal || 'Product description';
+  outDesc.classList.toggle('is-placeholder', !descVal);
+
+  // was price
+  const wasOn = showWas.checked && wasPrice.value !== '';
+  ticket.style.setProperty('--was-fr', wasOn ? '5fr' : '0fr');
+  if (wasOn){
+    const w = formatMoney(wasPrice.value);
+    outWas.textContent = `was $${w.dollars}${w.hasCents ? '.' + w.cents : ''}`;
+  } else {
+    outWas.textContent = '';
+  }
+
+  // now price
+  const nowValid = nowPrice.value !== '' && parseFloat(nowPrice.value) >= 0;
+  validateField(nowPrice, nowValid || nowPrice.value === '' ? true : false);
+  const n = formatMoney(nowPrice.value || '0');
+  outDollars.textContent = n.dollars;
+  outCents.textContent = n.cents;
+  outCents.hidden = !n.hasCents;
+
+  // fineline (optional — hide the text and barcode entirely when blank)
+  const fine = fineline.value.trim();
+  outFine.textContent = fine;
+  renderBarcode(fine);
+
+  fitPriceToTicket();
+}
+
+window.__step='fit-defined';
+function fitPriceToTicket(){
+  const row = document.querySelector('.row-now');
+  const symEl = document.querySelector('.sym');
+  const centsEl = document.querySelector('.cents');
+  const dollarsSvg = document.getElementById('dollarsSvg');
+  const dollarsTextEl = document.getElementById('outDollars');
+
+  const totalAvailableW = row.clientWidth * 0.995;
+  const availableH = row.clientHeight * 0.99;
+
+  // reset svg sizing before measuring flanking elements so it doesn't influence their layout
+  dollarsSvg.style.width = '';
+  dollarsSvg.style.height = '';
+
+  const symRect = symEl.getBoundingClientRect();
+  const centsRect = centsEl.getBoundingClientRect();
+  const symStyle = getComputedStyle(symEl);
+  const centsStyle = getComputedStyle(centsEl);
+  const symTotalW = symRect.width + parseFloat(symStyle.marginRight || 0);
+  const centsTotalW = centsRect.width + parseFloat(centsStyle.marginLeft || 0);
+
+  const dollarsAvailableW = Math.max(20, totalAvailableW - symTotalW - centsTotalW);
+
+  // getBBox() on SVG text returns the FONT'S EM BOX (including large empty ascender/
+  // descender padding), NOT the visible glyph. For this font the ink is only ~53% of
+  // that box, which is why the digit rendered about half the intended size. Canvas
+  // measureText's actualBoundingBox* values give the TRUE ink bounds instead.
+  const SVG_FONT_SIZE = 200; // must match .dollars-svg text font-size in CSS
+  const STROKE_PAD = 4;      // room for the stroke painted around the glyph
+  const dollarsText = dollarsTextEl.textContent || '0';
+
+  let inkX, inkY, inkW, inkH;
+  try {
+    const ctx = (fitPriceToTicket._canvas ||
+      (fitPriceToTicket._canvas = document.createElement('canvas'))).getContext('2d');
+    ctx.font = SVG_FONT_SIZE + "px 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif";
+    const m = ctx.measureText(dollarsText);
+    inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+    inkH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    inkX = -m.actualBoundingBoxLeft;
+    inkY = -m.actualBoundingBoxAscent;
+  } catch (e) {
+    inkW = inkH = 0;
+  }
+
+  // fall back to getBBox only if canvas metrics are unavailable
+  if (!inkW || !inkH) {
+    let bb;
+    try { bb = dollarsTextEl.getBBox(); } catch (e) { return; }
+    if (!bb || !bb.width || !bb.height) return;
+    inkX = bb.x; inkY = bb.y; inkW = bb.width; inkH = bb.height;
+  }
+
+  const boxX = inkX - STROKE_PAD;
+  const boxY = inkY - STROKE_PAD;
+  const boxW = inkW + STROKE_PAD * 2;
+  const boxH = inkH + STROKE_PAD * 2;
+
+  // Scale the tight ink box to fill the row. Height fills fully; width grows
+  // proportionally but never past its budget, so a narrow digit stays proportioned
+  // instead of stretching fat.
+  const scaleAtWidth = dollarsAvailableW / boxW;
+  const scaleAtHeight = availableH / boxH;
+  const MAX_DISTORTION = 6;
+  const scaleX = Math.min(scaleAtWidth, scaleAtHeight);
+  const scaleY = Math.min(scaleAtHeight, scaleX * MAX_DISTORTION);
+
+  dollarsSvg.setAttribute('viewBox', `${boxX} ${boxY} ${boxW} ${boxH}`);
+  dollarsSvg.setAttribute('preserveAspectRatio', 'none');
+
+  // Size in CONTAINER units (cqw/cqh) rather than fixed pixels. These resolve against
+  // the ticket itself (which is container-type:size), so when the ticket is resized to
+  // fill the page for printing, the price rescales automatically — no dependence on JS
+  // re-running at print time, and unaffected by how the flex parent is sized.
+  const tRect = ticket.getBoundingClientRect();
+  const tW = tRect.width || 1;
+  const tH = tRect.height || 1;
+  dollarsSvg.style.width = ((boxW * scaleX) / tW * 100) + 'cqw';
+  dollarsSvg.style.height = ((boxH * scaleY) / tH * 100) + 'cqh';
+}
+
+window.addEventListener('resize', fitPriceToTicket);
+
+// The ticket is resized to fill the page when printing. Print events don't fire in
+// every context (notably headless PDF generation), so observe the element itself —
+// any size change re-fits the price, whatever caused it.
+if (window.ResizeObserver){
+  const ro = new ResizeObserver(() => fitPriceToTicket());
+  ro.observe(ticket);
+}
+window.addEventListener('beforeprint', fitPriceToTicket);
+window.addEventListener('afterprint', fitPriceToTicket);
+if (window.matchMedia){
+  const printMq = window.matchMedia('print');
+  const onPrintChange = () => fitPriceToTicket();
+  if (printMq.addEventListener) printMq.addEventListener('change', onPrintChange);
+  else if (printMq.addListener) printMq.addListener(onPrintChange);
+}
+
+showWas.addEventListener('change', () => {
+  wasField.style.display = showWas.checked ? 'block' : 'none';
+  update();
+});
+
+[description, wasPrice, nowPrice, fineline].forEach(inp => {
+  inp.addEventListener('input', update);
+});
+
+window.__step='buttons';
+const downloadBtn = el('downloadBtn');
+
+// Draw the ticket onto a canvas using geometry measured from the live DOM.
+// Done natively (rather than with a screenshot library) because the ticket relies on
+// CSS container-query units and inline SVG, which those libraries render unreliably.
+async function buildTicketCanvas(exportScale){
+  const S = exportScale;
+  const tRect = ticket.getBoundingClientRect();
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(tRect.width * S);
+  cv.height = Math.round(tRect.height * S);
+  const ctx = cv.getContext('2d');
+
+  ctx.fillStyle = '#FCFBF8';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = '#15181B';
+  ctx.lineWidth = Math.max(1, S);
+  ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, cv.width - ctx.lineWidth, cv.height - ctx.lineWidth);
+
+  const rel = node => {
+    const r = node.getBoundingClientRect();
+    return { x: (r.left - tRect.left) * S, y: (r.top - tRect.top) * S, w: r.width * S, h: r.height * S };
+  };
+
+  // draw an element's text positioned by its TRUE ink bounds
+  const drawText = (node, opts = {}) => {
+    const txt = (node.textContent || '').toUpperCase();
+    if (!txt.trim()) return null;
+    const cs = getComputedStyle(node);
+    const box = rel(node);
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${parseFloat(cs.fontSize) * S}px ${cs.fontFamily}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const m = ctx.measureText(txt);
+    const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+    const align = opts.align || 'left';
+    let x = box.x + m.actualBoundingBoxLeft;
+    if (align === 'center') x = box.x + box.w / 2 - inkW / 2 + m.actualBoundingBoxLeft;
+    if (align === 'right') x = box.x + box.w - inkW + m.actualBoundingBoxLeft;
+    const baseline = opts.inkTop != null
+      ? opts.inkTop + m.actualBoundingBoxAscent
+      : box.y + box.h / 2 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+    ctx.fillStyle = cs.color;
+    ctx.fillText(txt, x, baseline);
+    if (opts.strike) {
+      ctx.strokeStyle = cs.color;
+      ctx.lineWidth = Math.max(1, parseFloat(cs.fontSize) * S * 0.06);
+      const midY = baseline - m.actualBoundingBoxAscent / 2.6;
+      ctx.beginPath();
+      ctx.moveTo(x - m.actualBoundingBoxLeft, midY);
+      ctx.lineTo(x - m.actualBoundingBoxLeft + inkW, midY);
+      ctx.stroke();
+    }
+    return { inkTop: baseline - m.actualBoundingBoxAscent };
+  };
+
+  if (!outDesc.classList.contains('is-placeholder')) drawText(outDesc, { align: 'center' });
+  if (outWas.textContent.trim()) drawText(outWas, { align: 'left', strike: true });
+
+  // dollars: scale the glyph to exactly fill the SVG's on-screen box
+  const svgBox = rel(dollarsSvgEl);
+  const dollarsTxt = outDollars.textContent || '0';
+  if (dollarsTxt) {
+    const BASE = 200;
+    ctx.save();
+    ctx.font = `${BASE}px 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif`;
+    const m = ctx.measureText(dollarsTxt);
+    const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+    const inkH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    if (inkW > 0 && inkH > 0) {
+      ctx.translate(svgBox.x, svgBox.y);
+      ctx.scale(svgBox.w / inkW, svgBox.h / inkH);
+      ctx.font = `${BASE}px 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#15181B';
+      ctx.fillText(dollarsTxt, m.actualBoundingBoxLeft, m.actualBoundingBoxAscent);
+      // background-coloured stroke thins the strokes, matching the on-screen style.
+      // Must be proportional to the glyph, not a fixed value: this runs inside a
+      // stretched transform, so a constant width would scale up and hollow the digits.
+      ctx.strokeStyle = '#FCFBF8';
+      ctx.lineWidth = inkH * 0.014;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(dollarsTxt, m.actualBoundingBoxLeft, m.actualBoundingBoxAscent);
+    }
+    ctx.restore();
+  }
+
+  // $ and cents align their ink tops to the dollars' ink top
+  const dollarsInkTop = svgBox.y;
+  drawText(document.querySelector('.sym'), { align: 'left', inkTop: dollarsInkTop });
+  if (!outCents.hidden) drawText(outCents, { align: 'left', inkTop: dollarsInkTop });
+
+  if (outFine.textContent.trim()) drawText(outFine, { align: 'left' });
+
+  // barcode (optional)
+  const bc = document.getElementById('barcode');
+  if (bc && bc.innerHTML.trim()) {
+    const box = rel(bc);
+    if (box.w > 0 && box.h > 0) {
+      const clone = bc.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', box.w);
+      clone.setAttribute('height', box.h);
+      const url = 'data:image/svg+xml;charset=utf-8,' +
+        encodeURIComponent(new XMLSerializer().serializeToString(clone));
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => { ctx.drawImage(img, box.x, box.y, box.w, box.h); resolve(); };
+        img.onerror = resolve; // skip the barcode rather than failing the whole export
+        img.src = url;
+      });
+    }
+  }
+
+  return cv;
+}
+
+// Show the finished ticket in an overlay instead of triggering a download.
+// A download link navigates the frame in sandboxed viewers, which reloads the page
+// and wipes the form — the cause of tickets resetting to 0 on save.
+function showResult(dataUrl, name, pdfUrl){
+  let overlay = document.getElementById('resultOverlay');
+  if (overlay) overlay.remove();
+
+  overlay = document.createElement('div');
+  overlay.id = 'resultOverlay';
+  overlay.innerHTML = `
+    <div class="result-inner">
+      <p class="result-hint">Press and hold the ticket, then choose <strong>Save to Photos</strong>.</p>
+      <img class="result-img" alt="${name} ticket" src="${dataUrl}">
+      <div class="result-actions">
+        <button type="button" class="result-btn" id="resultCopy">Copy image</button>
+        <button type="button" class="result-btn" id="resultShare">Share / Email</button>
+        <a class="result-btn" id="resultDownload" href="${dataUrl}" download="${name}.png">Download</a>
+        ${pdfUrl ? `<a class="result-btn" id="resultPdf" href="${pdfUrl}" target="_blank" rel="noopener">Open PDF</a>` : ''}
+        <button type="button" class="result-btn result-close" id="resultClose">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#resultClose').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // Copy to clipboard — often works where downloads and file-sharing are blocked,
+  // so the ticket can be pasted straight into Mail, Messages or Notes.
+  overlay.querySelector('#resultCopy').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    try {
+      if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) {
+        throw new Error('clipboard images unsupported');
+      }
+      // Safari requires the ClipboardItem be constructed with a promise, synchronously
+      const item = new ClipboardItem({
+        'image/png': fetch(dataUrl).then(r => r.blob())
+      });
+      await navigator.clipboard.write([item]);
+      btn.textContent = 'Copied — paste into Mail';
+    } catch (err) {
+      console.error('copy failed', err);
+      btn.textContent = 'Copy blocked here';
+    }
+  });
+
+  overlay.querySelector('#resultShare').addEventListener('click', async () => {
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], name + '.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: name });
+      } else {
+        alert("Sharing isn't available here. Press and hold the ticket above to save it, or open this page outside the preview.");
+      }
+    } catch (err) {
+      if (!err || err.name !== 'AbortError') {
+        alert("Sharing isn't available here. Press and hold the ticket above to save it.");
+      }
+    }
+  });
+}
+
+downloadBtn.addEventListener('click', async () => {
+  const nowOk = nowPrice.value !== '';
+  validateField(nowPrice, nowOk);
+  if (!nowOk) { nowPrice.focus(); return; }
+
+  const originalLabel = downloadBtn.textContent;
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = 'Preparing…';
+  exporting = true;
+
+  try {
+    await ensureFontsReady();
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const canvas = await buildTicketCanvas(Math.max(3, (window.devicePixelRatio || 1) * 2));
+    const name = (fineline.value.trim() || description.value.trim() || 'ticket')
+      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
+
+    showResult(canvas.toDataURL('image/png'), name, null);
+  } catch (err) {
+    console.error('PNG export failed:', err);
+    alert("Sorry — couldn't build the image. Please tell me what price you used.");
+  } finally {
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = originalLabel;
+    exporting = false;
+  }
+});
+
+// Native share sheet — on iOS this is the reliable route to Mail, Messages, Files
+// or Photos, and it avoids downloads/navigation entirely.
+const shareBtn = el('shareBtn');
+shareBtn.addEventListener('click', async () => {
+  const nowOk = nowPrice.value !== '';
+  validateField(nowPrice, nowOk);
+  if (!nowOk) { nowPrice.focus(); return; }
+
+  const label = shareBtn.textContent;
+  shareBtn.disabled = true;
+  shareBtn.textContent = 'Preparing…';
+  exporting = true;
+
+  try {
+    await ensureFontsReady();
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const canvas = await buildTicketCanvas(Math.max(3, (window.devicePixelRatio || 1) * 2));
+    const name = (fineline.value.trim() || description.value.trim() || 'ticket')
+      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
+
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('Could not encode the image.');
+
+    const file = new File([blob], name + '.png', { type: 'image/png' });
+    const desc = description.value.trim();
+    const priceLabel = '$' + (nowPrice.value || '');
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: desc || 'Pricing ticket',
+        text: desc ? `${desc} — ${priceLabel}` : priceLabel
+      });
+    } else {
+      // sharing unavailable (or blocked in this frame) — fall back to the overlay
+      showResult(canvas.toDataURL('image/png'), name, null);
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      // user dismissed the share sheet — not an error
+    } else {
+      console.error('Share failed:', err);
+      try {
+        const canvas = await buildTicketCanvas(3);
+        showResult(canvas.toDataURL('image/png'), 'ticket', null);
+      } catch (e) {
+        alert("Sorry — sharing isn't available here. Try opening this page outside the preview.");
+      }
+    }
+  } finally {
+    shareBtn.disabled = false;
+    shareBtn.textContent = label;
+    exporting = false;
+  }
+});
+
+// window.print() is blocked in sandboxed viewer iframes, so build the PDF directly
+// and download it the same way the PNG export does (which is known to work).
+function buildPdfBlob(canvas){
+  // JPEG can be embedded in a PDF directly via DCTDecode — no library needed.
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+  const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  const jpeg = atob(b64);
+
+  const PW = 595.28, PH = 841.89;            // A4 in points
+  const content = `q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
+
+  const parts = [];
+  const offsets = [];
+  let pos = 0;
+  const push = str => { parts.push(str); pos += str.length; };
+  const startObj = n => { offsets[n] = pos; };
+
+  push('%PDF-1.4\n%\xFF\xFF\xFF\xFF\n');
+
+  startObj(1);
+  push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+
+  startObj(2);
+  push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+
+  startObj(3);
+  push(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] `
+     + `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`);
+
+  startObj(4);
+  push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${canvas.width} `
+     + `/Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 `
+     + `/Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`);
+  push(jpeg);
+  push('\nendstream\nendobj\n');
+
+  startObj(5);
+  push(`5 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`);
+
+  const xrefPos = pos;
+  let xref = 'xref\n0 6\n0000000000 65535 f \n';
+  for (let i = 1; i <= 5; i++){
+    xref += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  }
+  push(xref);
+  push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF\n`);
+
+  const pdfStr = parts.join('');
+  const bytes = new Uint8Array(pdfStr.length);
+  for (let i = 0; i < pdfStr.length; i++) bytes[i] = pdfStr.charCodeAt(i) & 0xFF;
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+const printBtn = el('printBtn');
+printBtn.addEventListener('click', async () => {
+  const nowOk = nowPrice.value !== '';
+  validateField(nowPrice, nowOk);
+  if (!nowOk) { nowPrice.focus(); return; }
+
+  const label = printBtn.textContent;
+  printBtn.disabled = true;
+  printBtn.textContent = 'Preparing…';
+  exporting = true;
+  try {
+    await ensureFontsReady();
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const canvas = await buildTicketCanvas(Math.max(3, (window.devicePixelRatio || 1) * 2));
+    const blob = buildPdfBlob(canvas);
+    const name = (fineline.value.trim() || description.value.trim() || 'ticket')
+      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
+
+    // show in an overlay; opening the PDF uses target=_blank so the frame (and
+    // therefore the form) is never navigated away and reset
+    const pdfUrl = URL.createObjectURL(blob);
+    showResult(canvas.toDataURL('image/png'), name, pdfUrl);
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
+  } catch (err) {
+    console.error('PDF export failed:', err);
+    alert("Sorry — couldn't create the PDF. The Download PNG button should still work.");
+  } finally {
+    printBtn.disabled = false;
+    printBtn.textContent = label;
+    exporting = false;
+  }
+});
+update();
+
+// --- Persist the ticket -------------------------------------------------------
+// The form values only live in the live page, so anything that re-renders this file
+// from scratch (notably the viewer's "Save as PDF") would otherwise produce a blank
+// ticket. Saving the values means a fresh load restores the last ticket.
+const STATE_KEY = 'ticket-state';
+
+function currentState(){
+  return {
+    description: description.value,
+    showWas: showWas.checked,
+    wasPrice: wasPrice.value,
+    nowPrice: nowPrice.value,
+    fineline: fineline.value
+  };
+}
+
+function applyState(s){
+  if (!s || typeof s !== 'object') return;
+  if (typeof s.description === 'string') description.value = s.description;
+  if (typeof s.wasPrice === 'string') wasPrice.value = s.wasPrice;
+  if (typeof s.nowPrice === 'string') nowPrice.value = s.nowPrice;
+  if (typeof s.fineline === 'string') fineline.value = s.fineline;
+  showWas.checked = !!s.showWas;
+  wasField.style.display = showWas.checked ? 'block' : 'none';
+  update();
+}
+
+let saveTimer = null;
+let userEdited = false;   // set as soon as the person touches the form
+let exporting = false;    // true while a PNG/PDF is being generated
+
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      if (window.storage && window.storage.set) {
+        await window.storage.set(STATE_KEY, JSON.stringify(currentState()), false);
+      }
+    } catch (e) { /* saving is best-effort; never block the UI */ }
+  }, 250);
+}
+
+function markEdited(){ userEdited = true; saveState(); }
+
+[description, wasPrice, nowPrice, fineline].forEach(inp => inp.addEventListener('input', markEdited));
+showWas.addEventListener('change', markEdited);
+
+(async () => {
+  try {
+    if (!(window.storage && window.storage.get)) return;
+    const res = await window.storage.get(STATE_KEY, false);
+    // Restoring is ONLY safe if the person hasn't already started filling the form.
+    // This loader is async, so without these guards a slow read could resolve after
+    // they've typed (or mid-export) and wipe their ticket with stale empty values.
+    if (userEdited || exporting) return;
+    if (!res || !res.value) return;
+    const saved = JSON.parse(res.value);
+    const hasContent = saved && (String(saved.description || '').trim() ||
+                                 String(saved.nowPrice || '').trim() ||
+                                 String(saved.fineline || '').trim());
+    if (!hasContent) return;   // never overwrite with an empty saved state
+    applyState(saved);
+  } catch (e) { /* nothing saved yet, or storage unavailable — start empty */ }
+})();
+
+// Explicitly load the webfaces used on the ticket, then re-fit. document.fonts.ready
+// can resolve before a specific face is actually usable, and the price sizing is
+// measured from font metrics — so fitting too early produces a broken layout.
+async function ensureFontsReady(){
+  if (!document.fonts || !document.fonts.load) return;
+  const faces = [
+    "200px 'Just Another Hand'",
+    "24px 'Permanent Marker'",
+    "16px 'Inter'"
+  ];
+  try {
+    await Promise.race([
+      Promise.all(faces.map(f => document.fonts.load(f).catch(() => null))),
+      new Promise(r => setTimeout(r, 4000))   // never hang if fonts can't be fetched
+    ]);
+    await Promise.race([
+      document.fonts.ready,
+      new Promise(r => setTimeout(r, 1000))
+    ]);
+  } catch (e) { /* fall through and use whatever is available */ }
+  fitPriceToTicket();
+}
+
+window.__step='init-fonts';
+ensureFontsReady();
+
+// --- Diagnostics --------------------------------------------------------------
+// I can't test in iOS Safari, so let the device report what's actually failing.
+const diagErrors = [];
+window.addEventListener('error', e => {
+  diagErrors.push((e.message || 'error') + (e.lineno ? ':' + e.lineno : ''));
+  renderDiagnostics();
+});
+window.addEventListener('unhandledrejection', e => {
+  diagErrors.push('promise: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+  renderDiagnostics();
+});
+
+function renderDiagnostics(){
+  const out = document.getElementById('diagOut');
+  if (!out) return;
+  const yn = v => v ? 'YES' : 'NO';
+  let shareFiles = 'n/a';
+  try {
+    const f = new File([new Blob(['x'])], 't.png', { type: 'image/png' });
+    shareFiles = (navigator.canShare && navigator.canShare({ files: [f] })) ? 'YES' : 'NO';
+  } catch (e) { shareFiles = 'ERR ' + e.message; }
+
+  const fCheck = (document.fonts && document.fonts.check)
+    ? { jah: document.fonts.check("200px 'Just Another Hand'"),
+        pm:  document.fonts.check("24px 'Permanent Marker'") }
+    : { jah: false, pm: false };
+
+  const t = ticket.getBoundingClientRect();
+  const s = dollarsSvgEl.getBoundingClientRect();
+
+  out.textContent = [
+    'Script reached  : ' + (window.__step || 'NEVER STARTED'),
+    'Boot errors     : ' + ((window.__bootSeen && window.__bootSeen.length) ? '\n  - ' + window.__bootSeen.join('\n  - ') : 'none'),
+    '',
+    'URL scheme      : ' + location.protocol,
+    'In iframe       : ' + yn(window.top !== window.self),
+    'UA              : ' + navigator.userAgent,
+    '',
+    'Font JustAnother: ' + yn(fCheck.jah),
+    'Font PermMarker : ' + yn(fCheck.pm),
+    'JsBarcode loaded: ' + yn(typeof JsBarcode === 'function'),
+    'window.storage  : ' + yn(!!(window.storage && window.storage.get)),
+    '',
+    'navigator.share : ' + yn(!!navigator.share),
+    'canShare(files) : ' + shareFiles,
+    'ClipboardItem   : ' + yn(!!window.ClipboardItem),
+    'clipboard.write : ' + yn(!!(navigator.clipboard && navigator.clipboard.write)),
+    'download attr   : ' + yn('download' in document.createElement('a')),
+    'canvas.toBlob   : ' + yn(!!HTMLCanvasElement.prototype.toBlob),
+    '',
+    'Ticket size     : ' + Math.round(t.width) + ' x ' + Math.round(t.height),
+    'Price fill (H)  : ' + (t.height ? (s.height / t.height * 100).toFixed(1) + '%' : 'n/a'),
+    'Price on ticket : "' + outDollars.textContent + '" / cents "' + outCents.textContent + '"',
+    'Desc on ticket  : "' + outDesc.textContent + '"',
+    '',
+    'JS errors       : ' + (diagErrors.length ? '\n  - ' + diagErrors.join('\n  - ') : 'none')
+  ].join('\n');
+}
+
+const diagCopy = document.getElementById('diagCopy');
+if (diagCopy){
+  diagCopy.addEventListener('click', async () => {
+    const txt = document.getElementById('diagOut').textContent;
+    try {
+      await navigator.clipboard.writeText(txt);
+      diagCopy.textContent = 'Copied';
+      setTimeout(() => { diagCopy.textContent = 'Copy diagnostics'; }, 1500);
+    } catch (e) {
+      const r = document.createRange();
+      r.selectNodeContents(document.getElementById('diagOut'));
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(r);
+      diagCopy.textContent = 'Selected — copy manually';
+    }
+  });
+}
+const diagBox = document.getElementById('diagBox');
+if (diagBox) diagBox.addEventListener('toggle', renderDiagnostics);
+// keep it live — a stale panel reports values from before the user typed
+[description, wasPrice, nowPrice, fineline].forEach(inp => inp.addEventListener('input', renderDiagnostics));
+showWas.addEventListener('change', renderDiagnostics);
+setInterval(renderDiagnostics, 2000);
+setTimeout(renderDiagnostics, 1500);
+window.__step='complete';
+setTimeout(renderDiagnostics, 6000);
+</script>
+</body>
+</html>
