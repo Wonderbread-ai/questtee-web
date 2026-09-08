@@ -467,7 +467,8 @@
 
       <div class="field" id="fineField">
         <label for="fineline">Fineline <span class="hint">optional — item number / barcode</span></label>
-        <input type="text" id="fineline" placeholder="e.g. 7 40123 45678">
+        <input type="text" id="fineline" placeholder="e.g. 9312345678907 or 1234567">
+        <div class="hint" id="barcodeNote" style="margin-top:6px;color:var(--ink-soft);font-size:12px;"></div>
       </div>
 
       <div class="actions">
@@ -537,25 +538,82 @@ function formatMoney(value){
   };
 }
 
+// Pick the right symbology for the product number:
+//   13 digits -> EAN-13 (standard retail; 12 digits = check digit computed)
+//    7 digits -> EAN-8  (7 data digits + computed check digit)
+//   anything else -> CODE128, which encodes any text
+function barcodeFormatFor(value){
+  // Ignore spaces/dashes when counting digits — product numbers are often typed
+  // grouped (e.g. "7 40123 45678"), but the symbology depends on digit count only.
+  const digits = String(value).replace(/\D/g, '');
+  const hasOnlyDigitsAndSeparators = /^[\d\s\-]*$/.test(String(value).trim());
+  if (hasOnlyDigitsAndSeparators){
+    if (digits.length === 13 || digits.length === 12) return { format: 'EAN13', data: digits };
+    if (digits.length === 8  || digits.length === 7)  return { format: 'EAN8',  data: digits };
+  }
+  return { format: 'CODE128', data: String(value).trim() };
+}
+
 function renderBarcode(value){
   if (!value){
     barcodeSvg.innerHTML = '';
+    if (typeof setBarcodeNote === 'function') setBarcodeNote('');
     return;
   }
   const rowHeight = barcodeSvg.parentElement.clientHeight || 40;
   const bottomGap = rowHeight * 0.15;
   const barHeight = Math.max(6, (rowHeight - bottomGap) * 0.32);
   barcodeSvg.style.marginBottom = bottomGap + 'px';
+
+  const pick = barcodeFormatFor(value);
+  const opts = {
+    displayValue: false,
+    margin: 0,
+    height: barHeight,
+    lineColor: '#15181B'
+  };
+
+  let used = pick.format;
+  let ok = true;
   try{
-    JsBarcode(barcodeSvg, value, {
-      format: 'CODE128',
-      displayValue: false,
-      margin: 0,
-      height: barHeight,
-      lineColor: '#15181B'
-    });
+    JsBarcode(barcodeSvg, pick.data, Object.assign({}, opts, {
+      format: pick.format,
+      valid: v => { ok = v; }
+    }));
   }catch(e){
-    barcodeSvg.innerHTML = '';
+    ok = false;
+  }
+
+  // If EAN validation failed (wrong length or bad check digit), fall back to
+  // CODE128 so the ticket always carries a scannable code rather than nothing.
+  if (!ok && pick.format !== 'CODE128'){
+    try{
+      JsBarcode(barcodeSvg, String(value).trim(), Object.assign({}, opts, {
+        format: 'CODE128',
+        valid: v => { ok = v; }
+      }));
+      used = 'CODE128';
+    }catch(e){ ok = false; }
+  }
+
+  if (!ok) barcodeSvg.innerHTML = '';
+  if (typeof setBarcodeNote === 'function'){
+    setBarcodeNote(ok ? used : 'could not encode');
+  }
+}
+
+function setBarcodeNote(fmt){
+  const n = document.getElementById('barcodeNote');
+  if (!n) return;
+  if (!fmt){ n.textContent = ''; return; }
+  if (fmt === 'could not encode'){
+    n.textContent = 'Could not encode this value as a barcode.';
+  } else if (fmt === 'EAN13'){
+    n.textContent = 'Barcode: EAN-13 (retail standard)';
+  } else if (fmt === 'EAN8'){
+    n.textContent = 'Barcode: EAN-8 (check digit added)';
+  } else {
+    n.textContent = 'Barcode: Code 128';
   }
 }
 
