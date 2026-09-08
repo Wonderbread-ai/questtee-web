@@ -834,20 +834,28 @@ async function buildTicketCanvas(exportScale){
     const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
     const inkH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
     if (inkW > 0 && inkH > 0) {
+      // Replicate the SVG preview's mapping EXACTLY: its viewBox spans the ink plus
+      // STROKE_PAD on every side, and that box is stretched to the element's size.
+      // Matching this (rather than mapping the raw ink) keeps the exported glyph the
+      // same size and weight as what's on screen.
+      const PAD = 4;                   // keep in sync with STROKE_PAD
+      const DOLLAR_STROKE_UNITS = 9;   // keep in sync with .dollars-svg text stroke-width in CSS
+      const boxW = inkW + PAD * 2;
+      const boxH = inkH + PAD * 2;
       ctx.translate(svgBox.x, svgBox.y);
-      ctx.scale(svgBox.w / inkW, svgBox.h / inkH);
+      ctx.scale(svgBox.w / boxW, svgBox.h / boxH);
       ctx.font = `${BASE}px 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
+      const originX = PAD + m.actualBoundingBoxLeft;
+      const originY = PAD + m.actualBoundingBoxAscent;
       ctx.fillStyle = '#15181B';
-      ctx.fillText(dollarsTxt, m.actualBoundingBoxLeft, m.actualBoundingBoxAscent);
-      // background-coloured stroke thins the strokes, matching the on-screen style.
-      // Must be proportional to the glyph, not a fixed value: this runs inside a
-      // stretched transform, so a constant width would scale up and hollow the digits.
+      ctx.fillText(dollarsTxt, originX, originY);
+      // same units as the SVG now, so the stroke value transfers directly
       ctx.strokeStyle = '#FCFBF8';
-      ctx.lineWidth = inkH * 0.018;
+      ctx.lineWidth = DOLLAR_STROKE_UNITS;
       ctx.lineJoin = 'round';
-      ctx.strokeText(dollarsTxt, m.actualBoundingBoxLeft, m.actualBoundingBoxAscent);
+      ctx.strokeText(dollarsTxt, originX, originY);
     }
     ctx.restore();
   }
