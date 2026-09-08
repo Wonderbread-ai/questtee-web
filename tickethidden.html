@@ -227,7 +227,7 @@
     font-size:200px;
     fill:var(--ink);
     stroke:var(--card);
-    stroke-width:7;
+    stroke-width:9;
     paint-order:fill stroke;
   }
   .now-price .cents{
@@ -787,7 +787,7 @@ async function buildTicketCanvas(exportScale){
       // Must be proportional to the glyph, not a fixed value: this runs inside a
       // stretched transform, so a constant width would scale up and hollow the digits.
       ctx.strokeStyle = '#FCFBF8';
-      ctx.lineWidth = inkH * 0.014;
+      ctx.lineWidth = inkH * 0.018;
       ctx.lineJoin = 'round';
       ctx.strokeText(dollarsTxt, m.actualBoundingBoxLeft, m.actualBoundingBoxAscent);
     }
