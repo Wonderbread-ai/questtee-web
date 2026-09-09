@@ -534,9 +534,8 @@
 
       <div class="actions">
         <button type="button" id="addTicketBtn">+ Add ticket</button>
-        <button type="button" id="downloadBtn" class="secondary">Save PNG</button>
         <button type="button" id="shareBtn" class="secondary">Share / Email</button>
-        <button type="button" id="printBtn" class="secondary">Save PDF</button>
+        <button type="button" id="printBtn">Save PDF</button>
       </div>
       <div id="queueBox" hidden>
         <div class="queue-head">
@@ -834,8 +833,6 @@ showWas.addEventListener('change', () => {
 });
 
 window.__step='buttons';
-const downloadBtn = el('downloadBtn');
-
 // Draw the ticket onto a canvas using geometry measured from the live DOM.
 // Done natively (rather than with a screenshot library) because the ticket relies on
 // CSS container-query units and inline SVG, which those libraries render unreliably.
@@ -978,7 +975,6 @@ function showResult(dataUrl, name, pdfUrl, pageCount, pdfBlob){
       <div class="result-actions">
         <button type="button" class="result-btn" id="resultCopy">Copy image</button>
         <button type="button" class="result-btn" id="resultShare">Share / Email</button>
-        <a class="result-btn" id="resultDownload" href="${pdfUrl || dataUrl}" download="${name}.${pdfUrl ? 'pdf' : 'png'}">Download</a>
         ${pdfUrl ? `<a class="result-btn" id="resultPdf" href="${pdfUrl}" target="_blank" rel="noopener">Open PDF</a>` : ''}
         <button type="button" class="result-btn result-close" id="resultClose">Close</button>
       </div>
@@ -1032,34 +1028,6 @@ function showResult(dataUrl, name, pdfUrl, pageCount, pdfBlob){
   });
 }
 
-downloadBtn.addEventListener('click', async () => {
-  const nowOk = nowPrice.value !== '';
-  validateField(nowPrice, nowOk);
-  if (!nowOk) { nowPrice.focus(); return; }
-
-  const originalLabel = downloadBtn.textContent;
-  downloadBtn.disabled = true;
-  downloadBtn.textContent = 'Preparing…';
-  exporting = true;
-
-  try {
-    await ensureFontsReady();
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-    const canvas = await buildTicketCanvas(Math.max(3, (window.devicePixelRatio || 1) * 2));
-    const name = (fineline.value.trim() || description.value.trim() || 'ticket')
-      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
-
-    showResult(canvas.toDataURL('image/png'), name, null);
-  } catch (err) {
-    console.error('PNG export failed:', err);
-    alert("Sorry — couldn't build the image. Please tell me what price you used.");
-  } finally {
-    downloadBtn.disabled = false;
-    downloadBtn.textContent = originalLabel;
-    exporting = false;
-  }
-});
 
 // Native share sheet — on iOS this is the reliable route to Mail, Messages, Files
 // or Photos, and it avoids downloads/navigation entirely.
