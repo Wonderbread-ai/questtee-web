@@ -155,7 +155,7 @@
     background:var(--card);
     border:1px solid var(--ink);
     display:grid;
-    grid-template-rows:minmax(0,6fr) minmax(0,3fr) minmax(0,var(--was-fr,0fr)) minmax(0,79fr) minmax(0,5fr) minmax(0,7fr);
+    grid-template-rows:minmax(0,6fr) minmax(0,3fr) minmax(0,var(--size-fr,0fr)) minmax(0,var(--was-fr,0fr)) minmax(0,79fr) minmax(0,5fr) minmax(0,7fr);
     padding:0;
     overflow:hidden;
   }
@@ -169,7 +169,7 @@
   }
   .row-desc span{
     font-family:'Permanent Marker','Poppins','Arial Black','Helvetica Neue',sans-serif;
-    font-size:5.4cqh;
+    font-size:5.1cqh;
     line-height:1;
     font-weight:600;
     color:var(--ink-soft);
@@ -180,6 +180,26 @@
     width:100%;
   }
 
+
+  .row-size{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 6cqw;
+    overflow:hidden;
+  }
+  .row-size span{
+    font-family:'Permanent Marker','Poppins','Arial Black','Helvetica Neue',sans-serif;
+    font-size:4.2cqh;
+    line-height:1;
+    font-weight:600;
+    color:var(--ink-soft);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    text-align:center;
+    width:100%;
+  }
   .row-was{
     display:flex;
     align-items:center;
@@ -331,6 +351,43 @@
     width:auto;
     flex-shrink:0;
   }
+
+
+  /* AI Scan button */
+  #aiScanWrap{
+    margin-bottom: 18px;
+  }
+  #aiScanBtn{
+    width: 100%;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    padding: 13px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  #aiScanBtn:disabled{
+    opacity: 0.55;
+    cursor: default;
+  }
+  #aiStatus{
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-align: center;
+    min-height: 18px;
+  }
+  #aiStatus.error{
+    color: var(--signal);
+    font-weight: 600;
+  }
+  #aiStatus[hidden]{ display:none; }
 
   #diagBox{
     margin-top:18px;
@@ -506,9 +563,22 @@
 
   <div class="layout">
     <form class="panel" id="ticketForm" novalidate>
+      <div id="aiScanWrap">
+        <button type="button" id="aiScanBtn">
+          📷 AI Scan Product Info for Auto Fill
+        </button>
+        <input type="file" id="aiCameraInput" accept="image/*" capture="environment" style="display:none;">
+        <div id="aiStatus" hidden></div>
+      </div>
+
       <div class="field">
         <label for="description">Description <span class="hint">product & side</span></label>
-        <input type="text" id="description" placeholder="e.g. Men's running shoe — aisle 4" maxlength="60">
+        <input type="text" id="description" placeholder="e.g. Men's running shoe — aisle 4" maxlength="18">
+      </div>
+
+      <div class="field">
+        <label for="sizeDesc">Size / Pack <span class="hint">optional — e.g. 100L or 20PK</span></label>
+        <input type="text" id="sizeDesc" placeholder="e.g. 100L, 20PK, 5 Tier" maxlength="20">
       </div>
 
       <div class="checkline">
@@ -551,6 +621,7 @@
         <div class="ticket-frame" id="ticket">
           <div class="row-desc"><span id="outDesc">Product description</span></div>
           <div class="row-gap"></div>
+          <div class="row-size"><span id="outSize"></span></div>
           <div class="row-was"><span id="outWas"></span></div>
           <div class="row-now">
             <div class="now-price">
@@ -587,6 +658,7 @@ const nowPrice = el('nowPrice');
 const fineline = el('fineline');
 
 const outDesc = el('outDesc');
+const outSize = el('outSize');
 const outWas = el('outWas');
 const outDollars = el('outDollars');
 const outCents = el('outCents');
@@ -696,6 +768,9 @@ function update(){
   const descVal = description.value.trim();
   outDesc.textContent = descVal || 'Product description';
   outDesc.classList.toggle('is-placeholder', !descVal);
+  const sizeVal = sizeDesc.value.trim().toUpperCase();
+  outSize.textContent = sizeVal;
+  ticket.style.setProperty('--size-fr', sizeVal ? '4fr' : '0fr');
 
   // was price
   const wasOn = showWas.checked && wasPrice.value !== '';
@@ -888,6 +963,7 @@ async function buildTicketCanvas(exportScale){
   };
 
   if (!outDesc.classList.contains('is-placeholder')) drawText(outDesc, { align: 'center' });
+  if (outSize.textContent) drawText(outSize, { align: 'center' });
   if (outWas.textContent.trim()) drawText(outWas, { align: 'left', strike: true });
 
   // dollars: scale the glyph to exactly fill the SVG's on-screen box
@@ -1086,6 +1162,122 @@ shareBtn.addEventListener('click', async () => {
   }
 });
 
+
+// --- AI Camera scan ----------------------------------------------------------
+const aiScanBtn    = el('aiScanBtn');
+const aiCameraInput = el('aiCameraInput');
+const aiStatus     = el('aiStatus');
+
+function setAiStatus(msg, isError){
+  aiStatus.hidden  = !msg;
+  aiStatus.textContent = msg;
+  aiStatus.className   = isError ? 'error' : '';
+}
+
+aiScanBtn.addEventListener('click', () => {
+  setAiStatus('');
+  aiCameraInput.value = '';
+  aiCameraInput.click();
+});
+
+aiCameraInput.addEventListener('change', async () => {
+  const file = aiCameraInput.files[0];
+  if (!file) return;
+
+  aiScanBtn.disabled = true;
+  aiScanBtn.innerHTML = '<span>&#9203;</span> Reading…';
+  setAiStatus('Sending photo to AI…');
+
+  try {
+    // Convert the image to base64 for the Anthropic API
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Could not read image'));
+      r.readAsDataURL(file);
+    });
+
+    const mediaType = file.type || 'image/jpeg';
+
+    const SYSTEM = `You are a retail pricing assistant. The user will send you a photo of a retail product information screen (a handheld stock terminal or similar). Extract:
+1. description: a short 1–3 word product name in Title Case. No brand names, no sizes. Max 18 chars. E.g. "Storage Container", "Shelving Unit", "Microfibre Cloths".
+2. size: the pack size or key dimension only, in uppercase. E.g. "100L", "20PK", "5 TIER", "1830X1200MM". Max 20 chars. Leave empty if not applicable.
+3. price: the current selling price as a plain number (e.g. 77.90).
+4. fineline: the product barcode or item number. If two numbers are shown (e.g. "0406871-9320090608766"), use the longer one.
+
+Respond ONLY with valid JSON — no markdown, no explanation:
+{"description":"...","size":"...","price":"...","fineline":"..."}
+
+If a field is not visible or unclear, use an empty string for that field.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 200,
+        system: SYSTEM,
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: base64 }
+          }, {
+            type: 'text',
+            text: 'Please extract the product details from this screen.'
+          }]
+        }]
+      })
+    });
+
+    if (!response.ok){
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const raw  = (data.content || []).find(b => b.type === 'text')?.text || '';
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.trim());
+    } catch(e){
+      // try to recover JSON from inside any wrapper text
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('AI returned unexpected format');
+      parsed = JSON.parse(m[0]);
+    }
+
+    // Fill only non-empty values; user can override any field after
+    if (parsed.description) {
+      description.value = parsed.description.slice(0,18);
+      description.dispatchEvent(new Event('input'));
+    }
+    if (parsed.size) {
+      sizeDesc.value = parsed.size.slice(0,20);
+      sizeDesc.dispatchEvent(new Event('input'));
+    }
+    if (parsed.price) {
+      nowPrice.value = parseFloat(parsed.price).toFixed(2);
+      nowPrice.dispatchEvent(new Event('input'));
+    }
+    if (parsed.fineline) {
+      fineline.value = parsed.fineline;
+      fineline.dispatchEvent(new Event('input'));
+    }
+    update();
+
+    const filled = [parsed.description, parsed.size, parsed.price, parsed.fineline].filter(Boolean).length;
+    setAiStatus(filled ? `Filled ${filled} field${filled > 1 ? 's' : ''} — check and adjust if needed.` : 'No details found — try a clearer photo.');
+
+  } catch(err){
+    console.error('AI scan error:', err);
+    setAiStatus('Could not read photo: ' + err.message, true);
+  } finally {
+    aiScanBtn.disabled = false;
+    aiScanBtn.textContent = '📷 AI Scan Product Info for Auto Fill';
+  }
+});
+
 // --- Ticket queue -------------------------------------------------------------
 // Lets several tickets be collected and exported together as one multi-page PDF.
 const ticketQueue = [];
@@ -1149,6 +1341,7 @@ el('addTicketBtn').addEventListener('click', () => {
 
   // clear the form for the next ticket, keeping focus where typing resumes
   description.value = '';
+  sizeDesc.value = '';
   nowPrice.value = '';
   fineline.value = '';
   wasPrice.value = '';
