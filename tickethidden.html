@@ -963,7 +963,7 @@ async function buildTicketCanvas(exportScale){
 // Show the finished ticket in an overlay instead of triggering a download.
 // A download link navigates the frame in sandboxed viewers, which reloads the page
 // and wipes the form — the cause of tickets resetting to 0 on save.
-function showResult(dataUrl, name, pdfUrl, pageCount){
+function showResult(dataUrl, name, pdfUrl, pageCount, pdfBlob){
   let overlay = document.getElementById('resultOverlay');
   if (overlay) overlay.remove();
 
@@ -978,7 +978,7 @@ function showResult(dataUrl, name, pdfUrl, pageCount){
       <div class="result-actions">
         <button type="button" class="result-btn" id="resultCopy">Copy image</button>
         <button type="button" class="result-btn" id="resultShare">Share / Email</button>
-        <a class="result-btn" id="resultDownload" href="${dataUrl}" download="${name}.png">Download</a>
+        <a class="result-btn" id="resultDownload" href="${pdfUrl || dataUrl}" download="${name}.${pdfUrl ? 'pdf' : 'png'}">Download</a>
         ${pdfUrl ? `<a class="result-btn" id="resultPdf" href="${pdfUrl}" target="_blank" rel="noopener">Open PDF</a>` : ''}
         <button type="button" class="result-btn result-close" id="resultClose">Close</button>
       </div>
@@ -1009,9 +1009,16 @@ function showResult(dataUrl, name, pdfUrl, pageCount){
 
   overlay.querySelector('#resultShare').addEventListener('click', async () => {
     try {
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const file = new File([blob], name + '.png', { type: 'image/png' });
+      // If a PDF was built, share THAT — it holds every ticket. Sharing the preview
+      // image would send only the first one.
+      let file;
+      if (pdfBlob) {
+        file = new File([pdfBlob], name + '.pdf', { type: 'application/pdf' });
+      } else {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        file = new File([blob], name + '.png', { type: 'image/png' });
+      }
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: name });
       } else {
@@ -1311,7 +1318,7 @@ printBtn.addEventListener('click', async () => {
     // therefore the form) is never navigated away and reset
     const pdfUrl = URL.createObjectURL(blob);
     showResult(canvases[0].toDataURL('image/png'), name, pdfUrl,
-               useQueue ? canvases.length : 0);
+               useQueue ? canvases.length : 0, blob);
     setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
   } catch (err) {
     console.error('PDF export failed:', err);
