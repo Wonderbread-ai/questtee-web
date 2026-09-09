@@ -271,6 +271,67 @@
     opacity:0.35;
   }
 
+  #queueBox{
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px solid var(--rule);
+  }
+  #queueBox[hidden]{display:none;}
+  .queue-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:8px;
+  }
+  .queue-clear{
+    background:none;
+    border:none;
+    color:var(--signal);
+    font-size:12px;
+    font-weight:600;
+    padding:4px 6px;
+    cursor:pointer;
+    width:auto;
+  }
+  #queueList{
+    list-style:none;
+    margin:0;
+    padding:0;
+  }
+  #queueList li{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:8px 10px;
+    border:1px solid var(--rule);
+    background:#fff;
+    margin-bottom:6px;
+    font-size:13px;
+  }
+  #queueList .q-text{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  #queueList .q-price{
+    font-weight:700;
+    white-space:nowrap;
+  }
+  #queueList .q-remove{
+    background:none;
+    border:1px solid var(--rule);
+    color:var(--ink-soft);
+    font-size:14px;
+    line-height:1;
+    padding:4px 8px;
+    cursor:pointer;
+    width:auto;
+    flex-shrink:0;
+  }
+
   #diagBox{
     margin-top:18px;
     border:1px solid var(--rule);
@@ -472,9 +533,17 @@
       </div>
 
       <div class="actions">
-        <button type="button" id="downloadBtn">Save PNG</button>
+        <button type="button" id="addTicketBtn">+ Add ticket</button>
+        <button type="button" id="downloadBtn" class="secondary">Save PNG</button>
         <button type="button" id="shareBtn" class="secondary">Share / Email</button>
         <button type="button" id="printBtn" class="secondary">Save PDF</button>
+      </div>
+      <div id="queueBox" hidden>
+        <div class="queue-head">
+          <span id="queueCount"></span>
+          <button type="button" id="clearQueue" class="queue-clear">Clear all</button>
+        </div>
+        <ul id="queueList"></ul>
       </div>
     </form>
 
@@ -894,7 +963,7 @@ async function buildTicketCanvas(exportScale){
 // Show the finished ticket in an overlay instead of triggering a download.
 // A download link navigates the frame in sandboxed viewers, which reloads the page
 // and wipes the form — the cause of tickets resetting to 0 on save.
-function showResult(dataUrl, name, pdfUrl){
+function showResult(dataUrl, name, pdfUrl, pageCount){
   let overlay = document.getElementById('resultOverlay');
   if (overlay) overlay.remove();
 
@@ -902,7 +971,9 @@ function showResult(dataUrl, name, pdfUrl){
   overlay.id = 'resultOverlay';
   overlay.innerHTML = `
     <div class="result-inner">
-      <p class="result-hint">Press and hold the ticket, then choose <strong>Save to Photos</strong>.</p>
+      <p class="result-hint">${pageCount > 1
+        ? 'PDF ready with <strong>' + pageCount + ' tickets</strong> — tap Open PDF, then share or print. (Preview below shows the first.)'
+        : 'Press and hold the ticket, then choose <strong>Save to Photos</strong>.'}</p>
       <img class="result-img" alt="${name} ticket" src="${dataUrl}">
       <div class="result-actions">
         <button type="button" class="result-btn" id="resultCopy">Copy image</button>
@@ -1040,14 +1111,111 @@ shareBtn.addEventListener('click', async () => {
   }
 });
 
-// window.print() is blocked in sandboxed viewer iframes, so build the PDF directly
-// and download it the same way the PNG export does (which is known to work).
-function buildPdfBlob(canvas){
-  // JPEG can be embedded in a PDF directly via DCTDecode — no library needed.
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-  const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-  const jpeg = atob(b64);
+// --- Ticket queue -------------------------------------------------------------
+// Lets several tickets be collected and exported together as one multi-page PDF.
+const ticketQueue = [];
+const queueBox = el('queueBox');
+const queueList = el('queueList');
+const queueCount = el('queueCount');
 
+function money(v){
+  const n = formatMoney(v || '0');
+  return '$' + n.dollars + (n.hasCents ? '.' + n.cents : '');
+}
+
+function renderQueue(){
+  queueBox.hidden = ticketQueue.length === 0;
+  queueCount.textContent = ticketQueue.length === 1
+    ? '1 ticket ready' : ticketQueue.length + ' tickets ready';
+  queueList.innerHTML = '';
+  ticketQueue.forEach((t, i) => {
+    const li = document.createElement('li');
+    const label = document.createElement('span');
+    label.className = 'q-text';
+    label.textContent = (t.description || '(no description)') +
+      (t.fineline ? ' · ' + t.fineline : '');
+    const price = document.createElement('span');
+    price.className = 'q-price';
+    price.textContent = money(t.nowPrice);
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'q-remove';
+    rm.setAttribute('aria-label', 'Remove ticket ' + (i + 1));
+    rm.textContent = '✕';
+    rm.addEventListener('click', () => {
+      ticketQueue.splice(i, 1);
+      renderQueue();
+      saveState();
+    });
+    const left = document.createElement('span');
+    left.className = 'q-text';
+    left.appendChild(label);
+    li.appendChild(left);
+    li.appendChild(price);
+    li.appendChild(rm);
+    queueList.appendChild(li);
+  });
+  updateExportLabels();
+}
+
+function updateExportLabels(){
+  const n = ticketQueue.length;
+  printBtn.textContent = n > 0 ? `Save PDF (${n})` : 'Save PDF';
+}
+
+el('addTicketBtn').addEventListener('click', () => {
+  const nowOk = nowPrice.value !== '';
+  validateField(nowPrice, nowOk);
+  if (!nowOk) { nowPrice.focus(); return; }
+
+  ticketQueue.push(currentState());
+  renderQueue();
+  saveState();
+
+  // clear the form for the next ticket, keeping focus where typing resumes
+  description.value = '';
+  nowPrice.value = '';
+  fineline.value = '';
+  wasPrice.value = '';
+  showWas.checked = false;
+  wasField.style.display = 'none';
+  update();
+  description.focus();
+});
+
+el('clearQueue').addEventListener('click', () => {
+  if (!ticketQueue.length) return;
+  if (!confirm('Remove all ' + ticketQueue.length + ' tickets?')) return;
+  ticketQueue.length = 0;
+  renderQueue();
+  saveState();
+});
+
+// Render each queued ticket by temporarily applying its values to the live ticket,
+// capturing it, then restoring whatever was in the form.
+async function renderQueueToCanvases(scale){
+  const saved = currentState();
+  const canvases = [];
+  try {
+    for (const t of ticketQueue){
+      applyState(t);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      fitPriceToTicket();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      canvases.push(await buildTicketCanvas(scale));
+    }
+  } finally {
+    applyState(saved);
+    fitPriceToTicket();
+  }
+  return canvases;
+}
+
+// and download it the same way the PNG export does (which is known to work).
+function buildPdfBlob(canvases){
+  // Accepts one canvas or an array — each becomes its own A4 page, so a batch of
+  // tickets saves as a single multi-page PDF that prints in one go.
+  const list = Array.isArray(canvases) ? canvases : [canvases];
   const PW = 595.28, PH = 841.89;            // A4 in points
   const content = `q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
 
@@ -1057,35 +1225,50 @@ function buildPdfBlob(canvas){
   const push = str => { parts.push(str); pos += str.length; };
   const startObj = n => { offsets[n] = pos; };
 
+  // object numbering: 1 catalog, 2 pages tree, then 3 objects per page
+  const pageObjNum = i => 3 + i * 3;
+  const imgObjNum  = i => 4 + i * 3;
+  const contObjNum = i => 5 + i * 3;
+  const totalObjs  = 2 + list.length * 3;
+
   push('%PDF-1.4\n%\xFF\xFF\xFF\xFF\n');
 
   startObj(1);
   push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
 
+  const kids = list.map((_, i) => `${pageObjNum(i)} 0 R`).join(' ');
   startObj(2);
-  push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  push(`2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${list.length} >>\nendobj\n`);
 
-  startObj(3);
-  push(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] `
-     + `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`);
+  list.forEach((canvas, i) => {
+    // JPEG can be embedded directly via DCTDecode — no library needed
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    const jpeg = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
 
-  startObj(4);
-  push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${canvas.width} `
-     + `/Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 `
-     + `/Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`);
-  push(jpeg);
-  push('\nendstream\nendobj\n');
+    startObj(pageObjNum(i));
+    push(`${pageObjNum(i)} 0 obj\n<< /Type /Page /Parent 2 0 R `
+       + `/MediaBox [0 0 ${PW} ${PH}] `
+       + `/Resources << /XObject << /Im0 ${imgObjNum(i)} 0 R >> >> `
+       + `/Contents ${contObjNum(i)} 0 R >>\nendobj\n`);
 
-  startObj(5);
-  push(`5 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`);
+    startObj(imgObjNum(i));
+    push(`${imgObjNum(i)} 0 obj\n<< /Type /XObject /Subtype /Image `
+       + `/Width ${canvas.width} /Height ${canvas.height} /ColorSpace /DeviceRGB `
+       + `/BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`);
+    push(jpeg);
+    push('\nendstream\nendobj\n');
+
+    startObj(contObjNum(i));
+    push(`${contObjNum(i)} 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`);
+  });
 
   const xrefPos = pos;
-  let xref = 'xref\n0 6\n0000000000 65535 f \n';
-  for (let i = 1; i <= 5; i++){
+  let xref = `xref\n0 ${totalObjs + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= totalObjs; i++){
     xref += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
   }
   push(xref);
-  push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF\n`);
+  push(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF\n`);
 
   const pdfStr = parts.join('');
   const bytes = new Uint8Array(pdfStr.length);
@@ -1095,9 +1278,13 @@ function buildPdfBlob(canvas){
 
 const printBtn = el('printBtn');
 printBtn.addEventListener('click', async () => {
-  const nowOk = nowPrice.value !== '';
-  validateField(nowPrice, nowOk);
-  if (!nowOk) { nowPrice.focus(); return; }
+  // With tickets queued, export those; otherwise export whatever is on screen.
+  const useQueue = ticketQueue.length > 0;
+  if (!useQueue){
+    const nowOk = nowPrice.value !== '';
+    validateField(nowPrice, nowOk);
+    if (!nowOk) { nowPrice.focus(); return; }
+  }
 
   const label = printBtn.textContent;
   printBtn.disabled = true;
@@ -1107,15 +1294,24 @@ printBtn.addEventListener('click', async () => {
     await ensureFontsReady();
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    const canvas = await buildTicketCanvas(Math.max(3, (window.devicePixelRatio || 1) * 2));
-    const blob = buildPdfBlob(canvas);
-    const name = (fineline.value.trim() || description.value.trim() || 'ticket')
-      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
+    const scale = Math.max(3, (window.devicePixelRatio || 1) * 2);
+    const canvases = useQueue
+      ? await renderQueueToCanvases(scale)
+      : [await buildTicketCanvas(scale)];
+
+    if (!canvases.length) throw new Error('nothing to export');
+
+    const blob = buildPdfBlob(canvases);
+    const base = useQueue
+      ? 'tickets-' + canvases.length
+      : (fineline.value.trim() || description.value.trim() || 'ticket');
+    const name = base.replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'tickets';
 
     // show in an overlay; opening the PDF uses target=_blank so the frame (and
     // therefore the form) is never navigated away and reset
     const pdfUrl = URL.createObjectURL(blob);
-    showResult(canvas.toDataURL('image/png'), name, pdfUrl);
+    showResult(canvases[0].toDataURL('image/png'), name, pdfUrl,
+               useQueue ? canvases.length : 0);
     setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
   } catch (err) {
     console.error('PDF export failed:', err);
@@ -1164,7 +1360,9 @@ function saveState(){
   saveTimer = setTimeout(async () => {
     try {
       if (window.storage && window.storage.set) {
-        await window.storage.set(STATE_KEY, JSON.stringify(currentState()), false);
+        await window.storage.set(STATE_KEY, JSON.stringify({
+          form: currentState(), queue: ticketQueue
+        }), false);
       }
     } catch (e) { /* saving is best-effort; never block the UI */ }
   }, 250);
@@ -1184,12 +1382,20 @@ showWas.addEventListener('change', markEdited);
     // they've typed (or mid-export) and wipe their ticket with stale empty values.
     if (userEdited || exporting) return;
     if (!res || !res.value) return;
-    const saved = JSON.parse(res.value);
-    const hasContent = saved && (String(saved.description || '').trim() ||
-                                 String(saved.nowPrice || '').trim() ||
-                                 String(saved.fineline || '').trim());
+    const parsed = JSON.parse(res.value);
+    // supports both the newer {form, queue} shape and the older flat form object
+    const savedForm = parsed && parsed.form ? parsed.form : parsed;
+    const savedQueue = parsed && Array.isArray(parsed.queue) ? parsed.queue : [];
+    if (savedQueue.length){
+      ticketQueue.length = 0;
+      savedQueue.forEach(t => ticketQueue.push(t));
+      renderQueue();
+    }
+    const hasContent = savedForm && (String(savedForm.description || '').trim() ||
+                                     String(savedForm.nowPrice || '').trim() ||
+                                     String(savedForm.fineline || '').trim());
     if (!hasContent) return;   // never overwrite with an empty saved state
-    applyState(saved);
+    applyState(savedForm);
   } catch (e) { /* nothing saved yet, or storage unavailable — start empty */ }
 })();
 
