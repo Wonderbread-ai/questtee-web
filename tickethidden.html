@@ -1217,14 +1217,23 @@ async function processAiImage(file){
   setAiStatus('Sending photo to AI…');
 
   try {
+    // Snapshot the file into a Blob immediately — Safari can invalidate the
+    // File reference once the sheet dismisses, causing "Load failed".
+    const blob = file.slice(0, file.size, file.type || 'image/jpeg');
+    const mediaType = (file.type && file.type.startsWith('image/')) ? file.type : 'image/jpeg';
+
     const base64 = await new Promise((res, rej) => {
       const r = new FileReader();
-      r.onload  = () => res(r.result.split(',')[1]);
-      r.onerror = () => rej(new Error('Could not read image'));
-      r.readAsDataURL(file);
+      r.onload  = () => {
+        const result = r.result;
+        if (!result || typeof result !== 'string') { rej(new Error('Empty result from FileReader')); return; }
+        const comma = result.indexOf(',');
+        res(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      r.onerror = () => rej(new Error('Could not read image — try again or use a different photo'));
+      r.onabort = () => rej(new Error('Image read was cancelled'));
+      r.readAsDataURL(blob);
     });
-
-    const mediaType = file.type || 'image/jpeg';
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1285,8 +1294,14 @@ aiAttachBtn.addEventListener('click', () => {
   aiLibraryInput.click();
 });
 
-aiCameraInput.addEventListener('change',  () => { if (aiCameraInput.files[0])  processAiImage(aiCameraInput.files[0]); });
-aiLibraryInput.addEventListener('change', () => { if (aiLibraryInput.files[0]) processAiImage(aiLibraryInput.files[0]); });
+aiCameraInput.addEventListener('change',  () => {
+  const file = aiCameraInput.files && aiCameraInput.files[0];
+  if (file) processAiImage(file);
+});
+aiLibraryInput.addEventListener('change', () => {
+  const file = aiLibraryInput.files && aiLibraryInput.files[0];
+  if (file) processAiImage(file);
+});
 
 
 
