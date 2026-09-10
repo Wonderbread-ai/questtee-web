@@ -356,9 +356,12 @@
   /* AI Scan button */
   #aiScanWrap{
     margin-bottom: 18px;
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
   }
   #aiScanBtn{
-    width: 100%;
+    flex: 1;
     background: var(--ink);
     color: #fff;
     border: none;
@@ -376,12 +379,29 @@
     opacity: 0.55;
     cursor: default;
   }
+  #aiAttachBtn{
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    padding: 13px 14px;
+    font-size: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #aiAttachBtn:disabled{
+    opacity: 0.55;
+    cursor: default;
+  }
   #aiStatus{
     margin-top: 10px;
     font-size: 13px;
     color: var(--ink-soft);
     text-align: center;
     min-height: 18px;
+    flex-basis: 100%;
   }
   #aiStatus.error{
     color: var(--signal);
@@ -567,12 +587,14 @@
         <button type="button" id="aiScanBtn">
           📷 AI Scan Product Info for Auto Fill
         </button>
+        <button type="button" id="aiAttachBtn" title="Attach a photo from your library">📎</button>
         <input type="file" id="aiCameraInput" accept="image/*" capture="environment" style="display:none;">
+        <input type="file" id="aiLibraryInput" accept="image/*" style="display:none;">
         <div id="aiStatus" hidden></div>
       </div>
 
       <div class="field">
-        <label for="description">Description <span class="hint">product & side</span></label>
+        <label for="description">Description</label>
         <input type="text" id="description" placeholder="e.g. Men's running shoe — aisle 4" maxlength="18">
       </div>
 
@@ -656,6 +678,7 @@ const wasField = el('wasField');
 const wasPrice = el('wasPrice');
 const nowPrice = el('nowPrice');
 const fineline = el('fineline');
+const sizeDesc = el('sizeDesc');
 
 const outDesc = el('outDesc');
 const outSize = el('outSize');
@@ -1164,42 +1187,19 @@ shareBtn.addEventListener('click', async () => {
 
 
 // --- AI Camera scan ----------------------------------------------------------
-const aiScanBtn    = el('aiScanBtn');
-const aiCameraInput = el('aiCameraInput');
-const aiStatus     = el('aiStatus');
+const aiScanBtn      = el('aiScanBtn');
+const aiAttachBtn    = el('aiAttachBtn');
+const aiCameraInput  = el('aiCameraInput');
+const aiLibraryInput = el('aiLibraryInput');
+const aiStatus       = el('aiStatus');
 
 function setAiStatus(msg, isError){
-  aiStatus.hidden  = !msg;
+  aiStatus.hidden      = !msg;
   aiStatus.textContent = msg;
   aiStatus.className   = isError ? 'error' : '';
 }
 
-aiScanBtn.addEventListener('click', () => {
-  setAiStatus('');
-  aiCameraInput.value = '';
-  aiCameraInput.click();
-});
-
-aiCameraInput.addEventListener('change', async () => {
-  const file = aiCameraInput.files[0];
-  if (!file) return;
-
-  aiScanBtn.disabled = true;
-  aiScanBtn.innerHTML = '<span>&#9203;</span> Reading…';
-  setAiStatus('Sending photo to AI…');
-
-  try {
-    // Convert the image to base64 for the Anthropic API
-    const base64 = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload  = () => res(r.result.split(',')[1]);
-      r.onerror = () => rej(new Error('Could not read image'));
-      r.readAsDataURL(file);
-    });
-
-    const mediaType = file.type || 'image/jpeg';
-
-    const SYSTEM = `You are a retail pricing assistant. The user will send you a photo of a retail product information screen (a handheld stock terminal or similar). Extract:
+const SYSTEM = `You are a retail pricing assistant. The user will send you a photo of a retail product information screen (a handheld stock terminal or similar). Extract:
 1. description: a short 1–3 word product name in Title Case. No brand names, no sizes. Max 18 chars. E.g. "Storage Container", "Shelving Unit", "Microfibre Cloths".
 2. size: the pack size or key dimension only, in uppercase. E.g. "100L", "20PK", "5 TIER", "1830X1200MM". Max 20 chars. Leave empty if not applicable.
 3. price: the current selling price as a plain number (e.g. 77.90).
@@ -1210,6 +1210,22 @@ Respond ONLY with valid JSON — no markdown, no explanation:
 
 If a field is not visible or unclear, use an empty string for that field.`;
 
+async function processAiImage(file){
+  const allBtns = [aiScanBtn, aiAttachBtn];
+  allBtns.forEach(b => b.disabled = true);
+  aiScanBtn.textContent = '⏳ Reading…';
+  setAiStatus('Sending photo to AI…');
+
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Could not read image'));
+      r.readAsDataURL(file);
+    });
+
+    const mediaType = file.type || 'image/jpeg';
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1217,16 +1233,10 @@ If a field is not visible or unclear, use an empty string for that field.`;
         model: 'claude-sonnet-4-6',
         max_tokens: 200,
         system: SYSTEM,
-        messages: [{
-          role: 'user',
-          content: [{
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: base64 }
-          }, {
-            type: 'text',
-            text: 'Please extract the product details from this screen.'
-          }]
-        }]
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: 'Please extract the product details from this screen.' }
+        ]}]
       })
     });
 
@@ -1238,32 +1248,17 @@ If a field is not visible or unclear, use an empty string for that field.`;
     const data = await response.json();
     const raw  = (data.content || []).find(b => b.type === 'text')?.text || '';
     let parsed;
-    try {
-      parsed = JSON.parse(raw.trim());
-    } catch(e){
-      // try to recover JSON from inside any wrapper text
+    try { parsed = JSON.parse(raw.trim()); }
+    catch(e){
       const m = raw.match(/\{[\s\S]*\}/);
       if (!m) throw new Error('AI returned unexpected format');
       parsed = JSON.parse(m[0]);
     }
 
-    // Fill only non-empty values; user can override any field after
-    if (parsed.description) {
-      description.value = parsed.description.slice(0,18);
-      description.dispatchEvent(new Event('input'));
-    }
-    if (parsed.size) {
-      sizeDesc.value = parsed.size.slice(0,20);
-      sizeDesc.dispatchEvent(new Event('input'));
-    }
-    if (parsed.price) {
-      nowPrice.value = parseFloat(parsed.price).toFixed(2);
-      nowPrice.dispatchEvent(new Event('input'));
-    }
-    if (parsed.fineline) {
-      fineline.value = parsed.fineline;
-      fineline.dispatchEvent(new Event('input'));
-    }
+    if (parsed.description){ description.value = parsed.description.slice(0,18); description.dispatchEvent(new Event('input')); }
+    if (parsed.size)       { sizeDesc.value    = parsed.size.slice(0,20);        sizeDesc.dispatchEvent(new Event('input')); }
+    if (parsed.price)      { nowPrice.value    = parseFloat(parsed.price).toFixed(2); nowPrice.dispatchEvent(new Event('input')); }
+    if (parsed.fineline)   { fineline.value    = parsed.fineline;                fineline.dispatchEvent(new Event('input')); }
     update();
 
     const filled = [parsed.description, parsed.size, parsed.price, parsed.fineline].filter(Boolean).length;
@@ -1273,10 +1268,27 @@ If a field is not visible or unclear, use an empty string for that field.`;
     console.error('AI scan error:', err);
     setAiStatus('Could not read photo: ' + err.message, true);
   } finally {
-    aiScanBtn.disabled = false;
+    allBtns.forEach(b => b.disabled = false);
     aiScanBtn.textContent = '📷 AI Scan Product Info for Auto Fill';
   }
+}
+
+aiScanBtn.addEventListener('click', () => {
+  setAiStatus('');
+  aiCameraInput.value = '';
+  aiCameraInput.click();
 });
+
+aiAttachBtn.addEventListener('click', () => {
+  setAiStatus('');
+  aiLibraryInput.value = '';
+  aiLibraryInput.click();
+});
+
+aiCameraInput.addEventListener('change',  () => { if (aiCameraInput.files[0])  processAiImage(aiCameraInput.files[0]); });
+aiLibraryInput.addEventListener('change', () => { if (aiLibraryInput.files[0]) processAiImage(aiLibraryInput.files[0]); });
+
+
 
 // --- Ticket queue -------------------------------------------------------------
 // Lets several tickets be collected and exported together as one multi-page PDF.
