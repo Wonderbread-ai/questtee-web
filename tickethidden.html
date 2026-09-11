@@ -1438,25 +1438,20 @@ el('emailTicketsBtn').addEventListener('click', async () => {
       .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
 
     const file = new File([blob], name + '.pdf', { type: 'application/pdf' });
+    const subject = encodeURIComponent(`Pricing Ticket${count > 1 ? 's' : ''} — ${count} item${count > 1 ? 's' : ''}`);
+    const body = encodeURIComponent(`Please find ${count} pricing ticket${count > 1 ? 's' : ''} attached.`);
 
-    // Try native share with files (iOS/Android) — falls back to mailto
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: 'Pricing Tickets',
-        text: `${count} ticket${count > 1 ? 's' : ''} attached.`
-      });
-    } else {
-      // Desktop fallback — open mailto with instructions
-      const subject = encodeURIComponent(`Pricing Ticket${count > 1 ? 's' : ''} — ${count} item${count > 1 ? 's' : ''}`);
-      const body = encodeURIComponent(`Please find ${count} pricing ticket${count > 1 ? 's' : ''} attached.\n\nNote: attach the PDF manually from your downloads.`);
-      window.open(`mailto:${recipientEmail}?subject=${subject}&body=${body}`, '_blank');
-      // Also trigger PDF download so they have the file to attach
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = name + '.pdf'; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-    }
+    // Step 1: Download the PDF so they have it ready to attach
+    const pdfUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = pdfUrl; a.download = name + '.pdf'; a.click();
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+
+    // Step 2: Open mail app with address pre-filled
+    // Small delay so the download starts first
+    setTimeout(() => {
+      window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
+    }, 600);
   } catch(err) {
     if (err.name !== 'AbortError') {
       alert('Could not email tickets: ' + err.message);
