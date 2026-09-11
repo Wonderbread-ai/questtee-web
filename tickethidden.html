@@ -1197,9 +1197,14 @@ function showResult(dataUrl, name, pdfUrl, pageCount, pdfBlob){
 // or Photos, and it avoids downloads/navigation entirely.
 const shareBtn = el('shareBtn');
 shareBtn.addEventListener('click', async () => {
-  const nowOk = nowPrice.value !== '';
-  validateField(nowPrice, nowOk);
-  if (!nowOk) { nowPrice.focus(); return; }
+  const useQueue = ticketQueue.length > 0;
+
+  // Only validate current form if not using queue
+  if (!useQueue) {
+    const nowOk = nowPrice.value !== '';
+    validateField(nowPrice, nowOk);
+    if (!nowOk) { nowPrice.focus(); return; }
+  }
 
   const label = shareBtn.textContent;
   shareBtn.disabled = true;
@@ -1209,31 +1214,40 @@ shareBtn.addEventListener('click', async () => {
   try {
     await ensureFontsReady();
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const scale = Math.max(3, (window.devicePixelRatio || 1) * 2);
 
-    const canvas = await buildTicketCanvas(Math.max(3, (window.devicePixelRatio || 1) * 2));
-    const name = (fineline.value.trim() || description.value.trim() || 'ticket')
-      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
-
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-    if (!blob) throw new Error('Could not encode the image.');
-
-    const file = new File([blob], name + '.png', { type: 'image/png' });
-    const desc = description.value.trim();
-    const priceLabel = '$' + (nowPrice.value || '');
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: desc || 'Pricing ticket',
-        text: desc ? `${desc} — ${priceLabel}` : priceLabel
-      });
+    if (useQueue) {
+      // Share the full multi-page PDF containing all queued tickets
+      const canvases = await renderQueueToCanvases(scale);
+      const blob = buildPdfBlob(canvases);
+      const name = `tickets-${canvases.length}`;
+      const file = new File([blob], name + '.pdf', { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `${canvases.length} Pricing Tickets` });
+      } else {
+        const pdfUrl = URL.createObjectURL(blob);
+        showResult(canvases[0].toDataURL('image/png'), name, pdfUrl, canvases.length, blob);
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
+      }
     } else {
-      // sharing unavailable (or blocked in this frame) — fall back to the overlay
-      showResult(canvas.toDataURL('image/png'), name, null);
+      // Single ticket — share as PNG
+      const canvas = await buildTicketCanvas(scale);
+      const name = (fineline.value.trim() || description.value.trim() || 'ticket')
+        .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      if (!blob) throw new Error('Could not encode the image.');
+      const file = new File([blob], name + '.png', { type: 'image/png' });
+      const desc = description.value.trim();
+      const priceLabel = '$' + (nowPrice.value || '');
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: desc || 'Pricing ticket', text: desc ? `${desc} — ${priceLabel}` : priceLabel });
+      } else {
+        showResult(canvas.toDataURL('image/png'), name, null);
+      }
     }
   } catch (err) {
     if (err && err.name === 'AbortError') {
-      // user dismissed the share sheet — not an error
+      // user dismissed — not an error
     } else {
       console.error('Share failed:', err);
       try {
