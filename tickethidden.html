@@ -409,36 +409,62 @@
   }
   #aiStatus[hidden]{ display:none; }
 
-  #adminPanel{
-    margin-top: 18px;
-    padding: 16px;
-    border: 1px solid var(--rule);
-    background: var(--panel);
+
+  .send-to-wrap{
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
   }
-  #adminPanel[hidden]{ display: none; }
-  .admin-head{
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 12px;
-    text-transform: uppercase;
+  .send-to-label{
+    font-size: 11px;
+    font-weight: 600;
     letter-spacing: 0.05em;
-  }
-  .admin-link-wrap{
-    margin-top: 14px;
-    text-align: center;
-  }
-  .admin-link{
-    background: none;
-    border: none;
     color: var(--ink-soft);
-    font-size: 12px;
-    font-weight: 500;
-    padding: 4px 8px;
+    display: block;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+  .send-to-row{
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .send-to-input{
+    flex: 1;
+    padding: 9px 11px;
+    border: 1px solid var(--rule);
+    background: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    min-width: 0;
+  }
+  .send-to-input:focus{
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+  }
+  .send-to-copy{
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0 16px;
     cursor: pointer;
     width: auto;
-    letter-spacing: 0.03em;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: background 0.15s;
   }
-  .admin-link:hover{ color: var(--ink); }
+  .send-to-copy:hover{ background: var(--rule); }
+  .send-to-copy.copied{
+    background: #e6f4ea;
+    color: #2a7a3b;
+    border-color: #b5d9bc;
+  }
 
   #diagBox{
     margin-top:18px;
@@ -656,31 +682,23 @@
 
       <div class="actions">
         <button type="button" id="addTicketBtn">+ Add ticket</button>
-        <button type="button" id="emailTicketsBtn" class="secondary">&#9993; Email Tickets</button>
         <button type="button" id="shareBtn" class="secondary">Share / Email</button>
         <button type="button" id="printBtn">Save PDF</button>
       </div>
+      <div class="send-to-wrap">
+        <label class="send-to-label" for="sendToEmail">Send to</label>
+        <div class="send-to-row">
+          <input type="email" id="sendToEmail" class="send-to-input" placeholder="e.g. team@example.com" autocomplete="email">
+          <button type="button" id="sendToCopy" class="send-to-copy" title="Copy email address">&#10697; Copy</button>
+        </div>
+      </div>
+
       <div id="queueBox" hidden>
         <div class="queue-head">
           <span id="queueCount"></span>
           <button type="button" id="clearQueue" class="queue-clear">Clear all</button>
         </div>
         <ul id="queueList"></ul>
-      </div>
-      <div id="adminPanel" hidden>
-        <div class="admin-head">Email Settings</div>
-        <div class="field" style="margin-bottom:10px;">
-          <label for="adminEmail">Recipient email</label>
-          <input type="email" id="adminEmail" placeholder="e.g. team@example.com">
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" id="adminSave">Save</button>
-          <button type="button" id="adminCancel" class="secondary">Cancel</button>
-        </div>
-        <div id="adminMsg" style="margin-top:8px;font-size:12px;color:var(--ink-soft);"></div>
-      </div>
-      <div class="admin-link-wrap">
-        <button type="button" id="adminToggle" class="admin-link">&#9881; Admin</button>
       </div>
 
     </form>
@@ -1350,119 +1368,43 @@ aiLibraryInput.addEventListener('change', () => {
 });
 
 
-
-// --- Email Tickets & Admin ---------------------------------------------------
-const DEFAULT_EMAIL   = 'weprojectinfinite@gmail.com';
-const EMAIL_STORE_KEY = 'ticketBuilderAdminEmail';
-let recipientEmail    = DEFAULT_EMAIL;
-
-// Load saved email on startup — use localStorage (works everywhere)
-try {
-  const saved = localStorage.getItem(EMAIL_STORE_KEY);
-  if (saved) recipientEmail = saved;
-} catch(e) {}
-
-// Admin panel toggle
-const adminToggle = el('adminToggle');
-const adminPanel  = el('adminPanel');
-const adminEmail  = el('adminEmail');
-const adminSave   = el('adminSave');
-const adminCancel = el('adminCancel');
-const adminMsg    = el('adminMsg');
-
-adminToggle.addEventListener('click', () => {
-  if (adminPanel.hidden) {
-    // Gate with simple credentials before showing the panel
-    const user = prompt('Username:');
-    if (user === null) return;
-    const pass = prompt('Password:');
-    if (pass === null) return;
-    if (user.trim() !== '7021' || pass.trim() !== '7021') {
-      alert('Incorrect username or password.');
-      return;
-    }
-  }
-  adminPanel.hidden = !adminPanel.hidden;
-  if (!adminPanel.hidden) {
-    adminEmail.value = recipientEmail;
-    adminMsg.textContent = '';
-  }
-});
-
-adminCancel.addEventListener('click', () => { adminPanel.hidden = true; });
-
-adminSave.addEventListener('click', () => {
-  const val = adminEmail.value.trim();
-  if (!val || !val.includes('@')) {
-    adminMsg.textContent = 'Please enter a valid email address.';
-    adminMsg.style.color = 'var(--signal)';
-    return;
-  }
-  try {
-    localStorage.setItem(EMAIL_STORE_KEY, val);
-    recipientEmail = val;
-    adminMsg.textContent = 'Saved — tickets will be emailed to ' + val;
-    adminMsg.style.color = 'var(--ink-soft)';
-    setTimeout(() => { adminPanel.hidden = true; }, 1800);
-  } catch(e) {
-    adminMsg.textContent = 'Could not save — ' + e.message;
-    adminMsg.style.color = 'var(--signal)';
-  }
-});
-
-// Email Tickets button
-el('emailTicketsBtn').addEventListener('click', async () => {
-  const useQueue = ticketQueue.length > 0;
-  if (!useQueue) {
-    const nowOk = nowPrice.value !== '';
-    validateField(nowPrice, nowOk);
-    if (!nowOk) { nowPrice.focus(); return; }
-  }
-
-  const btn = el('emailTicketsBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Preparing…';
-
-  try {
-    await ensureFontsReady();
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const scale = Math.max(3, (window.devicePixelRatio || 1) * 2);
-    const canvases = useQueue
-      ? await renderQueueToCanvases(scale)
-      : [await buildTicketCanvas(scale)];
-
-    const blob = buildPdfBlob(canvases);
-    const count = canvases.length;
-    const name = (useQueue ? `tickets-${count}` :
-      (fineline.value.trim() || description.value.trim() || 'ticket'))
-      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
-
-    const file = new File([blob], name + '.pdf', { type: 'application/pdf' });
-    const subject = encodeURIComponent(`Pricing Ticket${count > 1 ? 's' : ''} — ${count} item${count > 1 ? 's' : ''}`);
-    const body = encodeURIComponent(`Please find ${count} pricing ticket${count > 1 ? 's' : ''} attached.`);
-
-    // Step 1: Download the PDF so they have it ready to attach
-    const pdfUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = pdfUrl; a.download = name + '.pdf'; a.click();
-    setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
-
-    // Step 2: Open mail app with address pre-filled
-    // Small delay so the download starts first
-    setTimeout(() => {
-      window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
-    }, 600);
-  } catch(err) {
-    if (err.name !== 'AbortError') {
-      alert('Could not email tickets: ' + err.message);
-    }
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✉ Email Tickets';
-  }
-});
-
 // Lets several tickets be collected and exported together as one multi-page PDF.
+// --- Send-to email bar -------------------------------------------------------
+const SEND_TO_KEY = 'ticketBuilderSendTo';
+const sendToEmail = el('sendToEmail');
+const sendToCopy  = el('sendToCopy');
+
+// Load saved address
+try { const v = localStorage.getItem(SEND_TO_KEY); if (v) sendToEmail.value = v; } catch(e){}
+
+// Auto-save on change (debounced)
+let sendToTimer;
+sendToEmail.addEventListener('input', () => {
+  clearTimeout(sendToTimer);
+  sendToTimer = setTimeout(() => {
+    try { localStorage.setItem(SEND_TO_KEY, sendToEmail.value.trim()); } catch(e){}
+  }, 800);
+});
+
+// Copy button — copies the email address to clipboard
+sendToCopy.addEventListener('click', () => {
+  const val = sendToEmail.value.trim();
+  if (!val) return;
+  const done = () => {
+    sendToCopy.classList.add('copied');
+    sendToCopy.textContent = '✓';
+    setTimeout(() => { sendToCopy.classList.remove('copied'); sendToCopy.innerHTML = '&#10697; Copy'; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(val).then(done).catch(() => {
+      sendToEmail.select(); document.execCommand('copy'); done();
+    });
+  } else {
+    sendToEmail.select(); document.execCommand('copy'); done();
+  }
+});
+
+// --- Ticket queue ------------------------------------------------------------
 const ticketQueue = [];
 const queueBox = el('queueBox');
 const queueList = el('queueList');
