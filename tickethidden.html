@@ -1356,13 +1356,11 @@ const DEFAULT_EMAIL   = 'weprojectinfinite@gmail.com';
 const EMAIL_STORE_KEY = 'ticketBuilderAdminEmail';
 let recipientEmail    = DEFAULT_EMAIL;
 
-// Load saved email on startup
-(async () => {
-  try {
-    const saved = await window.storage.get(EMAIL_STORE_KEY, false);
-    if (saved && saved.value) recipientEmail = saved.value;
-  } catch(e) {}
-})();
+// Load saved email on startup — use localStorage (works everywhere)
+try {
+  const saved = localStorage.getItem(EMAIL_STORE_KEY);
+  if (saved) recipientEmail = saved;
+} catch(e) {}
 
 // Admin panel toggle
 const adminToggle = el('adminToggle');
@@ -1393,7 +1391,7 @@ adminToggle.addEventListener('click', () => {
 
 adminCancel.addEventListener('click', () => { adminPanel.hidden = true; });
 
-adminSave.addEventListener('click', async () => {
+adminSave.addEventListener('click', () => {
   const val = adminEmail.value.trim();
   if (!val || !val.includes('@')) {
     adminMsg.textContent = 'Please enter a valid email address.';
@@ -1401,7 +1399,7 @@ adminSave.addEventListener('click', async () => {
     return;
   }
   try {
-    await window.storage.set(EMAIL_STORE_KEY, val, false);
+    localStorage.setItem(EMAIL_STORE_KEY, val);
     recipientEmail = val;
     adminMsg.textContent = 'Saved — tickets will be emailed to ' + val;
     adminMsg.style.color = 'var(--ink-soft)';
