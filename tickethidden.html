@@ -409,6 +409,37 @@
   }
   #aiStatus[hidden]{ display:none; }
 
+  #adminPanel{
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid var(--rule);
+    background: var(--panel);
+  }
+  #adminPanel[hidden]{ display: none; }
+  .admin-head{
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .admin-link-wrap{
+    margin-top: 14px;
+    text-align: center;
+  }
+  .admin-link{
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    cursor: pointer;
+    width: auto;
+    letter-spacing: 0.03em;
+  }
+  .admin-link:hover{ color: var(--ink); }
+
   #diagBox{
     margin-top:18px;
     border:1px solid var(--rule);
@@ -578,7 +609,6 @@
 <div class="app">
   <header>
     <h1>Ticket builder</h1>
-    <p>Fill in the details on the left — the tag on the right updates as you type, sized and scaled to the same proportions it will print at.</p>
   </header>
 
   <div class="layout">
@@ -626,6 +656,7 @@
 
       <div class="actions">
         <button type="button" id="addTicketBtn">+ Add ticket</button>
+        <button type="button" id="emailTicketsBtn" class="secondary">&#9993; Email Tickets</button>
         <button type="button" id="shareBtn" class="secondary">Share / Email</button>
         <button type="button" id="printBtn">Save PDF</button>
       </div>
@@ -636,6 +667,22 @@
         </div>
         <ul id="queueList"></ul>
       </div>
+      <div id="adminPanel" hidden>
+        <div class="admin-head">Email Settings</div>
+        <div class="field" style="margin-bottom:10px;">
+          <label for="adminEmail">Recipient email</label>
+          <input type="email" id="adminEmail" placeholder="e.g. team@example.com">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="adminSave">Save</button>
+          <button type="button" id="adminCancel" class="secondary">Cancel</button>
+        </div>
+        <div id="adminMsg" style="margin-top:8px;font-size:12px;color:var(--ink-soft);"></div>
+      </div>
+      <div class="admin-link-wrap">
+        <button type="button" id="adminToggle" class="admin-link">&#9881; Admin</button>
+      </div>
+
     </form>
 
     <div>
@@ -1304,7 +1351,124 @@ aiLibraryInput.addEventListener('change', () => {
 
 
 
-// --- Ticket queue -------------------------------------------------------------
+// --- Email Tickets & Admin ---------------------------------------------------
+const DEFAULT_EMAIL   = 'weprojectinfinite@gmail.com';
+const EMAIL_STORE_KEY = 'ticketBuilderAdminEmail';
+let recipientEmail    = DEFAULT_EMAIL;
+
+// Load saved email on startup
+(async () => {
+  try {
+    const saved = await window.storage.get(EMAIL_STORE_KEY, false);
+    if (saved && saved.value) recipientEmail = saved.value;
+  } catch(e) {}
+})();
+
+// Admin panel toggle
+const adminToggle = el('adminToggle');
+const adminPanel  = el('adminPanel');
+const adminEmail  = el('adminEmail');
+const adminSave   = el('adminSave');
+const adminCancel = el('adminCancel');
+const adminMsg    = el('adminMsg');
+
+adminToggle.addEventListener('click', () => {
+  if (adminPanel.hidden) {
+    // Gate with simple credentials before showing the panel
+    const user = prompt('Username:');
+    if (user === null) return;
+    const pass = prompt('Password:');
+    if (pass === null) return;
+    if (user.trim() !== '7021' || pass.trim() !== '7021') {
+      alert('Incorrect username or password.');
+      return;
+    }
+  }
+  adminPanel.hidden = !adminPanel.hidden;
+  if (!adminPanel.hidden) {
+    adminEmail.value = recipientEmail;
+    adminMsg.textContent = '';
+  }
+});
+
+adminCancel.addEventListener('click', () => { adminPanel.hidden = true; });
+
+adminSave.addEventListener('click', async () => {
+  const val = adminEmail.value.trim();
+  if (!val || !val.includes('@')) {
+    adminMsg.textContent = 'Please enter a valid email address.';
+    adminMsg.style.color = 'var(--signal)';
+    return;
+  }
+  try {
+    await window.storage.set(EMAIL_STORE_KEY, val, false);
+    recipientEmail = val;
+    adminMsg.textContent = 'Saved — tickets will be emailed to ' + val;
+    adminMsg.style.color = 'var(--ink-soft)';
+    setTimeout(() => { adminPanel.hidden = true; }, 1800);
+  } catch(e) {
+    adminMsg.textContent = 'Could not save — ' + e.message;
+    adminMsg.style.color = 'var(--signal)';
+  }
+});
+
+// Email Tickets button
+el('emailTicketsBtn').addEventListener('click', async () => {
+  const useQueue = ticketQueue.length > 0;
+  if (!useQueue) {
+    const nowOk = nowPrice.value !== '';
+    validateField(nowPrice, nowOk);
+    if (!nowOk) { nowPrice.focus(); return; }
+  }
+
+  const btn = el('emailTicketsBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Preparing…';
+
+  try {
+    await ensureFontsReady();
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const scale = Math.max(3, (window.devicePixelRatio || 1) * 2);
+    const canvases = useQueue
+      ? await renderQueueToCanvases(scale)
+      : [await buildTicketCanvas(scale)];
+
+    const blob = buildPdfBlob(canvases);
+    const count = canvases.length;
+    const name = (useQueue ? `tickets-${count}` :
+      (fineline.value.trim() || description.value.trim() || 'ticket'))
+      .replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ticket';
+
+    const file = new File([blob], name + '.pdf', { type: 'application/pdf' });
+
+    // Try native share with files (iOS/Android) — falls back to mailto
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Pricing Tickets',
+        text: `${count} ticket${count > 1 ? 's' : ''} attached.`
+      });
+    } else {
+      // Desktop fallback — open mailto with instructions
+      const subject = encodeURIComponent(`Pricing Ticket${count > 1 ? 's' : ''} — ${count} item${count > 1 ? 's' : ''}`);
+      const body = encodeURIComponent(`Please find ${count} pricing ticket${count > 1 ? 's' : ''} attached.\n\nNote: attach the PDF manually from your downloads.`);
+      window.open(`mailto:${recipientEmail}?subject=${subject}&body=${body}`, '_blank');
+      // Also trigger PDF download so they have the file to attach
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name + '.pdf'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  } catch(err) {
+    if (err.name !== 'AbortError') {
+      alert('Could not email tickets: ' + err.message);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✉ Email Tickets';
+  }
+});
+
 // Lets several tickets be collected and exported together as one multi-page PDF.
 const ticketQueue = [];
 const queueBox = el('queueBox');
