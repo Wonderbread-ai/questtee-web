@@ -1201,7 +1201,7 @@ function setAiStatus(msg, isError){
 
 // Proxy URL — set after Cloudflare tunnel is created (e.g. https://xxx.trycloudflare.com)
 // During setup this is filled in by following the setup guide.
-const PROXY_URL = 'https://fad61081-cc46-49c2-8b82-1dfb5dc17c6e.cfargotunnel.com';
+const PROXY_URL = 'https://opt-footboard-trump.ngrok-free.dev';
 
 async function processAiImage(file){
   const allBtns = [aiScanBtn, aiAttachBtn];
@@ -1210,23 +1210,27 @@ async function processAiImage(file){
   setAiStatus('Sending photo to AI…');
 
   try {
-    // Snapshot the file into a Blob immediately — Safari can invalidate the
-    // File reference once the sheet dismisses, causing "Load failed".
-    const blob = file.slice(0, file.size, file.type || 'image/jpeg');
-    const mediaType = (file.type && file.type.startsWith('image/')) ? file.type : 'image/jpeg';
-
-    const base64 = await new Promise((res, rej) => {
+    // On iOS Safari the File reference can expire after the sheet closes.
+    // Reading into an ArrayBuffer immediately (synchronously capturing the
+    // data before any await) is the most reliable cross-browser approach.
+    const arrayBuffer = await new Promise((res, rej) => {
       const r = new FileReader();
-      r.onload  = () => {
-        const result = r.result;
-        if (!result || typeof result !== 'string') { rej(new Error('Empty result from FileReader')); return; }
-        const comma = result.indexOf(',');
-        res(comma >= 0 ? result.slice(comma + 1) : result);
-      };
-      r.onerror = () => rej(new Error('Could not read image — try again or use a different photo'));
-      r.onabort = () => rej(new Error('Image read was cancelled'));
-      r.readAsDataURL(blob);
+      r.onload  = () => res(r.result);
+      r.onerror = () => rej(new Error('Could not read image — try again'));
+      r.onabort = () => rej(new Error('Image read cancelled'));
+      r.readAsArrayBuffer(file);
     });
+
+    // Convert ArrayBuffer → base64 in chunks to avoid call-stack overflow
+    // on large images (common on modern phone cameras)
+    const mediaType = (file.type && file.type.startsWith('image/')) ? file.type : 'image/jpeg';
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const CHUNK = 8192;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    const base64 = btoa(binary);
 
     const response = await fetch(PROXY_URL + '/scan', {
       method: 'POST',
