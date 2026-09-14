@@ -394,6 +394,73 @@
     opacity: 0.55;
     cursor: default;
   }
+  #aiBatchBtn{
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    letter-spacing: 0.03em;
+  }
+  #aiBatchBtn:disabled{ opacity: 0.55; cursor: default; }
+
+  #batchProgress{
+    flex-basis: 100%;
+    margin-top: 8px;
+  }
+  #batchProgress[hidden]{ display:none; }
+  .batch-bar-wrap{
+    background: var(--rule);
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 5px;
+  }
+  .batch-bar{
+    height: 100%;
+    background: var(--ink);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .batch-msg{
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  /* Edit mode — update button */
+  #addTicketBtn.edit-mode{
+    background: #1a6b3c;
+  }
+  .edit-cancel{
+    background: none;
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 11px 14px;
+    cursor: pointer;
+    width: auto;
+  }
+
+  /* Queue items — tappable */
+  #queueList li{
+    cursor: pointer;
+  }
+  #queueList li:hover{
+    background: #f5f4f1;
+  }
+  #queueList li.editing{
+    border-color: var(--ink);
+    background: #f0ede8;
+  }
+
   #aiStatus{
     margin-top: 10px;
     font-size: 13px;
@@ -643,9 +710,15 @@
           📷 AI Scan Product Info for Auto Fill
         </button>
         <button type="button" id="aiAttachBtn" title="Attach a photo from your library">📎</button>
+        <button type="button" id="aiBatchBtn" title="Batch scan multiple photos">⚡ Batch</button>
         <input type="file" id="aiCameraInput" accept="image/*" capture="environment" style="display:none;">
         <input type="file" id="aiLibraryInput" accept="image/*" style="display:none;">
+        <input type="file" id="aiBatchInput" accept="image/*" multiple style="display:none;">
         <div id="aiStatus" hidden></div>
+        <div id="batchProgress" hidden>
+          <div class="batch-bar-wrap"><div id="batchBar" class="batch-bar"></div></div>
+          <div id="batchMsg" class="batch-msg"></div>
+        </div>
       </div>
 
       <div class="field">
@@ -1425,30 +1498,68 @@ function money(v){
   return '$' + n.dollars + (n.hasCents ? '.' + n.cents : '');
 }
 
+// Track which queue item is being edited (-1 = none)
+let editingIndex = -1;
+
 function renderQueue(){
   queueBox.hidden = ticketQueue.length === 0;
-  queueCount.textContent = ticketQueue.length === 1
-    ? '1 ticket ready' : ticketQueue.length + ' tickets ready';
+  const n = ticketQueue.length;
+  queueCount.textContent = n === 1
+    ? 'TICKET QUEUE — READY TO PRINT (1)'
+    : `TICKET QUEUE — READY TO PRINT (${n})`;
   queueList.innerHTML = '';
   ticketQueue.forEach((t, i) => {
     const li = document.createElement('li');
+    if (i === editingIndex) li.classList.add('editing');
+
     const label = document.createElement('span');
     label.className = 'q-text';
     label.textContent = (t.description || '(no description)') +
+      (t.sizeDesc ? ' ' + t.sizeDesc : '') +
       (t.fineline ? ' · ' + t.fineline : '');
+
     const price = document.createElement('span');
     price.className = 'q-price';
     price.textContent = money(t.nowPrice);
+
     const rm = document.createElement('button');
     rm.type = 'button';
     rm.className = 'q-remove';
     rm.setAttribute('aria-label', 'Remove ticket ' + (i + 1));
     rm.textContent = '✕';
-    rm.addEventListener('click', () => {
+    rm.addEventListener('click', e => {
+      e.stopPropagation();
+      if (editingIndex === i) cancelEdit();
       ticketQueue.splice(i, 1);
+      if (editingIndex > i) editingIndex--;
       renderQueue();
       saveState();
     });
+
+    // Tap the row to load it into the form for editing with live preview
+    li.addEventListener('click', () => {
+      if (editingIndex === i) { cancelEdit(); return; }
+      editingIndex = i;
+      applyState(ticketQueue[i]);
+      update();
+      fitPriceToTicket();
+      const addBtn = el('addTicketBtn');
+      addBtn.textContent = '✓ Update ticket';
+      addBtn.classList.add('edit-mode');
+      if (!el('editCancelBtn')){
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.id = 'editCancelBtn';
+        cancelBtn.className = 'edit-cancel';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', cancelEdit);
+        addBtn.parentNode.insertBefore(cancelBtn, addBtn.nextSibling);
+      }
+      renderQueue();
+      description.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      description.focus();
+    });
+
     const left = document.createElement('span');
     left.className = 'q-text';
     left.appendChild(label);
@@ -1458,6 +1569,16 @@ function renderQueue(){
     queueList.appendChild(li);
   });
   updateExportLabels();
+}
+
+function cancelEdit(){
+  editingIndex = -1;
+  const addBtn = el('addTicketBtn');
+  addBtn.textContent = '+ Add ticket';
+  addBtn.classList.remove('edit-mode');
+  const cancelBtn = el('editCancelBtn');
+  if (cancelBtn) cancelBtn.remove();
+  renderQueue();
 }
 
 function updateExportLabels(){
@@ -1470,11 +1591,19 @@ el('addTicketBtn').addEventListener('click', () => {
   validateField(nowPrice, nowOk);
   if (!nowOk) { nowPrice.focus(); return; }
 
+  if (editingIndex >= 0){
+    // Update existing queue item in place
+    ticketQueue[editingIndex] = currentState();
+    cancelEdit();
+    saveState();
+    return;
+  }
+
+  // Add new ticket
   ticketQueue.push(currentState());
   renderQueue();
   saveState();
 
-  // clear the form for the next ticket, keeping focus where typing resumes
   description.value = '';
   sizeDesc.value = '';
   nowPrice.value = '';
@@ -1490,9 +1619,93 @@ el('clearQueue').addEventListener('click', () => {
   if (!ticketQueue.length) return;
   if (!confirm('Remove all ' + ticketQueue.length + ' tickets?')) return;
   ticketQueue.length = 0;
+  if (editingIndex >= 0) cancelEdit();
   renderQueue();
   saveState();
 });
+
+// --- Batch scan --------------------------------------------------------------
+const aiBatchBtn    = el('aiBatchBtn');
+const aiBatchInput  = el('aiBatchInput');
+const batchProgress = el('batchProgress');
+const batchBar      = el('batchBar');
+const batchMsg      = el('batchMsg');
+
+aiBatchBtn.addEventListener('click', () => {
+  aiBatchInput.value = '';
+  aiBatchInput.click();
+});
+
+aiBatchInput.addEventListener('change', async () => {
+  const files = [...(aiBatchInput.files || [])];
+  if (!files.length) return;
+  const allBtns = [aiScanBtn, aiAttachBtn, aiBatchBtn];
+  allBtns.forEach(b => b.disabled = true);
+  batchProgress.hidden = false;
+  batchBar.style.width = '0%';
+  setAiStatus('');
+  let succeeded = 0; let failed = 0;
+  for (let i = 0; i < files.length; i++){
+    batchMsg.textContent = `Processing ${i + 1} of ${files.length}…`;
+    batchBar.style.width = ((i / files.length) * 100) + '%';
+    try {
+      const result = await processAiImageSilent(files[i]);
+      if (result){ ticketQueue.push(result); renderQueue(); saveState(); succeeded++; }
+      else failed++;
+    } catch(e) { failed++; }
+  }
+  batchBar.style.width = '100%';
+  batchMsg.textContent = `Done — ${succeeded} added${failed ? ', ' + failed + ' failed' : ''}.`;
+  setTimeout(() => { batchProgress.hidden = true; batchMsg.textContent = ''; batchBar.style.width = '0%'; }, 3000);
+  allBtns.forEach(b => b.disabled = false);
+});
+
+// Silent AI extraction — returns a state object directly without touching the form
+async function processAiImageSilent(file){
+  const base64 = await new Promise((res, rej) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 1200;
+      let { width: w, height: h } = img;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
+      const comma = dataUrl.indexOf(',');
+      res(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      const r = new FileReader();
+      r.onload  = () => { const d = r.result; const c = d.indexOf(','); res(c >= 0 ? d.slice(c+1) : d); };
+      r.onerror = () => rej(new Error('read failed'));
+      r.readAsDataURL(file);
+    };
+    img.src = objectUrl;
+  });
+  const response = await fetch(PROXY_URL + '/scan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: base64, mediaType: 'image/jpeg' })
+  });
+  if (!response.ok) throw new Error('API error ' + response.status);
+  const result = await response.json();
+  const parsed = result.data || {};
+  if (!parsed.price) return null;
+  return {
+    description: (parsed.description || '').slice(0, 18),
+    sizeDesc:    (parsed.size || '').slice(0, 20),
+    nowPrice:    parseFloat(parsed.price).toFixed(2),
+    wasPrice: '', showWas: false,
+    fineline: parsed.fineline || ''
+  };
+}
 
 // Render each queued ticket by temporarily applying its values to the live ticket,
 // capturing it, then restoring whatever was in the form.
