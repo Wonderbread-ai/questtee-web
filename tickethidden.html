@@ -1636,6 +1636,7 @@ const STATE_KEY = 'ticket-state';
 function currentState(){
   return {
     description: description.value,
+    sizeDesc:    sizeDesc.value,
     showWas: showWas.checked,
     wasPrice: wasPrice.value,
     nowPrice: nowPrice.value,
@@ -1646,9 +1647,10 @@ function currentState(){
 function applyState(s){
   if (!s || typeof s !== 'object') return;
   if (typeof s.description === 'string') description.value = s.description;
-  if (typeof s.wasPrice === 'string') wasPrice.value = s.wasPrice;
-  if (typeof s.nowPrice === 'string') nowPrice.value = s.nowPrice;
-  if (typeof s.fineline === 'string') fineline.value = s.fineline;
+  if (typeof s.sizeDesc    === 'string') sizeDesc.value    = s.sizeDesc;
+  if (typeof s.wasPrice    === 'string') wasPrice.value    = s.wasPrice;
+  if (typeof s.nowPrice    === 'string') nowPrice.value    = s.nowPrice;
+  if (typeof s.fineline    === 'string') fineline.value    = s.fineline;
   showWas.checked = !!s.showWas;
   wasField.style.display = showWas.checked ? 'block' : 'none';
   update();
