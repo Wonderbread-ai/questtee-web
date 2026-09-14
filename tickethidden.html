@@ -153,7 +153,6 @@
     aspect-ratio:210/297;
     container-type:size;
     background:var(--card);
-    border:1px solid var(--ink);
     display:grid;
     grid-template-rows:minmax(0,6fr) minmax(0,3fr) minmax(0,var(--size-fr,0fr)) minmax(0,var(--was-fr,0fr)) minmax(0,79fr) minmax(0,5fr) minmax(0,7fr);
     padding:0;
@@ -172,7 +171,7 @@
     font-size:5.1cqh;
     line-height:1;
     font-weight:600;
-    color:var(--ink-soft);
+    color:var(--ink);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
@@ -193,7 +192,7 @@
     font-size:4.2cqh;
     line-height:1;
     font-weight:600;
-    color:var(--ink-soft);
+    color:var(--ink);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
@@ -247,7 +246,7 @@
     font-size:200px;
     fill:var(--ink);
     stroke:var(--card);
-    stroke-width:9;
+    stroke-width:6;
     paint-order:fill stroke;
   }
   .now-price .cents{
@@ -1009,9 +1008,6 @@ async function buildTicketCanvas(exportScale){
 
   ctx.fillStyle = '#FCFBF8';
   ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.strokeStyle = '#15181B';
-  ctx.lineWidth = Math.max(1, S);
-  ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, cv.width - ctx.lineWidth, cv.height - ctx.lineWidth);
 
   const rel = node => {
     const r = node.getBoundingClientRect();
@@ -1070,7 +1066,7 @@ async function buildTicketCanvas(exportScale){
       // Matching this (rather than mapping the raw ink) keeps the exported glyph the
       // same size and weight as what's on screen.
       const PAD = 4;                   // keep in sync with STROKE_PAD
-      const DOLLAR_STROKE_UNITS = 9;   // keep in sync with .dollars-svg text stroke-width in CSS
+      const DOLLAR_STROKE_UNITS = 6;   // keep in sync with .dollars-svg text stroke-width in CSS
       const boxW = inkW + PAD * 2;
       const boxH = inkH + PAD * 2;
       ctx.translate(svgBox.x, svgBox.y);
