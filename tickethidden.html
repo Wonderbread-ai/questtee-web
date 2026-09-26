@@ -252,7 +252,7 @@
     font-size:200px;
     fill:var(--ink);
     stroke:var(--card);
-    stroke-width:6;
+    stroke-width:0;
     paint-order:fill stroke;
   }
   .now-price .cents{
@@ -1145,7 +1145,7 @@ async function buildTicketCanvas(exportScale){
       // Matching this (rather than mapping the raw ink) keeps the exported glyph the
       // same size and weight as what's on screen.
       const PAD = 4;                   // keep in sync with STROKE_PAD
-      const DOLLAR_STROKE_UNITS = 6;   // keep in sync with .dollars-svg text stroke-width in CSS
+      const DOLLAR_STROKE_UNITS = 0;   // keep in sync with .dollars-svg text stroke-width in CSS
       const boxW = inkW + PAD * 2;
       const boxH = inkH + PAD * 2;
       ctx.translate(svgBox.x, svgBox.y);
