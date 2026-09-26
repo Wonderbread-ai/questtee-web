@@ -213,7 +213,7 @@
     overflow:hidden;
   }
   .row-was span{
-    font-family:'Thenoeline','Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
+    font-family:'Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
     font-size:5cqh;
     color:var(--signal);
     text-decoration:line-through;
@@ -248,11 +248,11 @@
     flex-shrink:0;
   }
   .dollars-svg text{
-    font-family:'Thenoeline','Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
+    font-family:'Just Another Hand','Poppins','Arial Narrow','Helvetica Neue',sans-serif;
     font-size:200px;
     fill:var(--ink);
     stroke:var(--card);
-    stroke-width:0;
+    stroke-width:9;
     paint-order:fill stroke;
   }
   .now-price .cents{
@@ -1000,7 +1000,7 @@ function fitPriceToTicket(){
   try {
     const ctx = (fitPriceToTicket._canvas ||
       (fitPriceToTicket._canvas = document.createElement('canvas'))).getContext('2d');
-    ctx.font = SVG_FONT_SIZE + "px 'Thenoeline', 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif";
+    ctx.font = SVG_FONT_SIZE + "px 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif";
     const m = ctx.measureText(dollarsText);
     inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
     inkH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
@@ -1135,7 +1135,7 @@ async function buildTicketCanvas(exportScale){
   if (dollarsTxt) {
     const BASE = 200;
     ctx.save();
-    ctx.font = `${BASE}px 'Thenoeline', 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif`;
+    ctx.font = `${BASE}px 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif`;
     const m = ctx.measureText(dollarsTxt);
     const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
     const inkH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
@@ -1145,12 +1145,12 @@ async function buildTicketCanvas(exportScale){
       // Matching this (rather than mapping the raw ink) keeps the exported glyph the
       // same size and weight as what's on screen.
       const PAD = 4;                   // keep in sync with STROKE_PAD
-      const DOLLAR_STROKE_UNITS = 0;   // keep in sync with .dollars-svg text stroke-width in CSS
+      const DOLLAR_STROKE_UNITS = 9;   // keep in sync with .dollars-svg text stroke-width in CSS
       const boxW = inkW + PAD * 2;
       const boxH = inkH + PAD * 2;
       ctx.translate(svgBox.x, svgBox.y);
       ctx.scale(svgBox.w / boxW, svgBox.h / boxH);
-      ctx.font = `${BASE}px 'Thenoeline', 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif`;
+      ctx.font = `${BASE}px 'Just Another Hand', 'Poppins', 'Arial Narrow', 'Helvetica Neue', sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
       const originX = PAD + m.actualBoundingBoxLeft;
