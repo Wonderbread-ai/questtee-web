@@ -1650,19 +1650,21 @@ aiBatchInput.addEventListener('change', async () => {
   batchProgress.hidden = false;
   batchBar.style.width = '0%';
   setAiStatus('');
-  let succeeded = 0; let failed = 0;
+  let succeeded = 0; let failed = 0; let lastError = '';
   for (let i = 0; i < files.length; i++){
     batchMsg.textContent = `Processing ${i + 1} of ${files.length}…`;
     batchBar.style.width = ((i / files.length) * 100) + '%';
     try {
       const result = await processAiImageSilent(files[i]);
       if (result){ ticketQueue.push(result); renderQueue(); saveState(); succeeded++; }
-      else failed++;
-    } catch(e) { failed++; }
+      else { failed++; lastError = 'No price found in photo'; }
+    } catch(e) { failed++; lastError = e.message; console.error('Batch scan error:', e); }
   }
   batchBar.style.width = '100%';
-  batchMsg.textContent = `Done — ${succeeded} added${failed ? ', ' + failed + ' failed' : ''}.`;
-  setTimeout(() => { batchProgress.hidden = true; batchMsg.textContent = ''; batchBar.style.width = '0%'; }, 3000);
+  const msg = `Done — ${succeeded} added${failed ? ', ' + failed + ' failed' : ''}.`;
+  batchMsg.textContent = msg + (lastError && failed ? ` (${lastError})` : '');
+  setAiStatus(failed ? `${failed} scan${failed>1?'s':''} failed: ${lastError}` : '', failed > 0);
+  setTimeout(() => { batchProgress.hidden = true; batchMsg.textContent = ''; batchBar.style.width = '0%'; }, 8000);
   allBtns.forEach(b => b.disabled = false);
 });
 
