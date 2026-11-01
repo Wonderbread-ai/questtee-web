@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/daysheet", "destination": "https://cosmos-mac-mini.tail8a72d3.ts.net/daysheet/" },
+    { "source": "/daysheet/:path*", "destination": "https://cosmos-mac-mini.tail8a72d3.ts.net/daysheet/:path*" }
+  ]
+}
