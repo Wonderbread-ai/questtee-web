@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": false },
+    { "source": "/archive-original-home.html", "destination": "/", "permanent": false },
+    { "source": "/join.html", "destination": "/", "permanent": false },
+    { "source": "/how-it-works.html", "destination": "/", "permanent": false },
+    { "source": "/safety.html", "destination": "/", "permanent": false },
+    { "source": "/parent-consent.html", "destination": "/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/daysheet", "destination": "https://cosmos-mac-mini.tail8a72d3.ts.net/daysheet/" },
     { "source": "/daysheet/:path*", "destination": "https://cosmos-mac-mini.tail8a72d3.ts.net/daysheet/:path*" }
