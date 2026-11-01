@@ -2037,5 +2037,19 @@ setTimeout(renderDiagnostics, 1500);
 window.__step='complete';
 setTimeout(renderDiagnostics, 6000);
 </script>
+<!-- Day Sheet tabs (bottom of page) -->
+<style>
+  .dsTabs{display:flex;flex-wrap:wrap;gap:6px;max-width:1100px;margin:24px auto 28px;padding:0 16px;border-top:2px solid #0f7a5c;font-family:-apple-system,Segoe UI,Arial,sans-serif}
+  .dsTabs a{display:inline-block;padding:9px 18px;border-radius:0 0 8px 8px;text-decoration:none;font-size:14px;font-weight:600;color:#0f7a5c;background:#eef6f3;border:1px solid #cfe3dc;border-top:none;margin-top:-2px}
+  .dsTabs a:hover{background:#ddeee8}
+  .dsTabs a.active{background:#0f7a5c;color:#fff;border-color:#0f7a5c}
+  @media print{.dsTabs{display:none !important}}
+</style>
+<nav class="dsTabs">
+  <a href="/daysheet/">Daily positioning sheet</a>
+  <a href="/daysheet/training">Weekly training plan</a>
+  <a href="/tickethidden.html" class="active">Ticket builder</a>
+  <a href="/daysheet/qr">QR codes</a>
+</nav>
 </body>
 </html>
