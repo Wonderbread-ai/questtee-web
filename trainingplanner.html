@@ -255,8 +255,10 @@ try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.cla
     <div class="field-group" style="flex-direction:column;align-items:flex-start;gap:8px;">
       <label style="font-weight:600">Required Courses by Area</label>
       <div style="font-size:12px;color:#555;line-height:1.5">
-        Define which courses are mandatory for each rostered area. Anyone working in that area who doesn't have the course in their matrix will be treated as <strong>Not Started</strong> and scheduled for training.
+        Define which courses are mandatory for each rostered area. Anyone working in that area who doesn't have the course in their matrix will be treated as <strong>Not Started</strong> and scheduled for training. Only courses in the report(s) you load are used.
       </div>
+      <div id="reqCoursesAuto" style="width:100%;font-size:12px;color:#555;line-height:1.5"></div>
+      <div style="font-size:12px;font-weight:600;color:#333;margin-top:4px">Your extra rules (kept between uploads)</div>
       <div id="reqCoursesEditor" style="width:100%;display:flex;flex-direction:column;gap:6px;"></div>
       <button class="btn-secondary" id="addAreaRuleBtn" style="margin-top:4px;font-size:13px">+ Add Area Rule</button>
     </div>
@@ -434,7 +436,8 @@ const DEFAULT_SETTINGS = {
   // Map of area name (uppercase) → array of required course names
   // Anyone rostered in that area who lacks one of these courses (not in matrix at all,
   // or status is not Completed/In Progress) will have it injected as "Not Started".
-  requiredCoursesByArea: {}
+  requiredCoursesByArea: {},       // effective rules for the files currently loaded (rebuilt every upload)
+  manualRequiredCoursesByArea: {}  // rules you type in Settings — the only ones kept between uploads
 };
 
 // ══════════════════════════════════════════════════
@@ -452,13 +455,35 @@ let activeAreaFilter = new Set(); // empty = All
 let activeCourseFilter = new Set(); // empty = All courses in the report
 const courseOk = (name) => !activeCourseFilter.size || activeCourseFilter.has(name);
 let includeOldCompletions = false;
+// Required-course rules are rebuilt from the loaded files on every upload.
+let lastAutoRules = {};          // detected from the current files
+let lastDataCourses = new Set(); // every course that appears in the current matrix file(s)
+// Auto-detected + your own Settings rules, limited to courses that are actually in the loaded files.
+function effectiveRules() {
+  const out = {};
+  const add = (area, list) => {
+    const A = String(area).toUpperCase();
+    for (const c of (list || [])) { if (!lastDataCourses.has(c)) continue; (out[A] = out[A] || new Set()).add(c); }
+  };
+  for (const [a, l] of Object.entries(lastAutoRules)) add(a, l);
+  for (const [a, l] of Object.entries(settings.manualRequiredCoursesByArea || {})) add(a, l);
+  return Object.fromEntries(Object.entries(out).map(([a, set]) => [a, [...set].sort()]));
+}
 const hiddenSections = loadHiddenSections();
 
 // ══════════════════════════════════════════════════
 // SETTINGS PERSISTENCE
 // ══════════════════════════════════════════════════
 function loadSettings() {
-  try { const s = JSON.parse(localStorage.getItem("tpSettings")); if (s && s.courses) return s; } catch(e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem("tpSettings"));
+    if (s && s.courses) {
+      // Older versions saved auto-detected rules and kept adding to them on every upload,
+      // so courses from previous reports leaked into new ones. Start those clean.
+      if (!s.manualRequiredCoursesByArea) { s.manualRequiredCoursesByArea = {}; s.requiredCoursesByArea = {}; }
+      return s;
+    }
+  } catch(e) {}
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 }
 function saveSettings() { try { localStorage.setItem("tpSettings", JSON.stringify(settings)); } catch(e) {} }
@@ -1583,17 +1608,11 @@ async function generate() {
           detectedRules[area].add(c.name);
         }
       }
-      // Convert Sets to arrays and merge with any manually-added rules the user saved
-      const existing = settings.requiredCoursesByArea || {};
-      const merged = {};
-      const allAreas = new Set([...Object.keys(detectedRules), ...Object.keys(existing)]);
-      for (const area of allAreas) {
-        const auto = detectedRules[area] ? [...detectedRules[area]] : [];
-        const manual = existing[area] || [];
-        // Union: include everything from both auto-detect and manual rules
-        merged[area] = [...new Set([...auto, ...manual])].sort();
-      }
-      settings.requiredCoursesByArea = merged;
+      // Rebuild from scratch for THESE files — nothing carries over from a previous upload
+      // except rules you typed in Settings, and only for courses that are in these files.
+      lastDataCourses = new Set(matrixRecords.flatMap(r => (r.courses || []).map(c => c.name)).filter(Boolean));
+      lastAutoRules = Object.fromEntries(Object.entries(detectedRules).map(([a, set]) => [a, [...set].sort()]));
+      settings.requiredCoursesByArea = effectiveRules();
       saveSettings();
     }
 
@@ -1680,7 +1699,12 @@ function openSettings() {
 
   // Populate required courses editor
   el("reqCoursesEditor").innerHTML = "";
-  const rcba = settings.requiredCoursesByArea || {};
+  const auto = Object.entries(lastAutoRules);
+  el("reqCoursesAuto").innerHTML = auto.length
+    ? `<details><summary style="cursor:pointer"><strong>Detected from the files you loaded</strong> (${auto.length} areas — rebuilt every upload)</summary>` +
+      auto.map(([a, c]) => `<div style="margin:4px 0 0 12px"><strong>${esc(a)}:</strong> ${c.map(esc).join(", ")}</div>`).join("") + `</details>`
+    : `<em>Load your files to see the courses detected for each area.</em>`;
+  const rcba = settings.manualRequiredCoursesByArea || {};
   for (const [area, courses] of Object.entries(rcba)) addAreaRuleRow(area, courses);
   if (!Object.keys(rcba).length) addAreaRuleRow("", []); // start with one empty row
 
@@ -1695,7 +1719,8 @@ function saveAndRegenerate() {
   settings.maxMinutesPerPersonPerDay = Number(el("sMaxPerDay").value) || 90;
   settings.maxConcurrentPerDepartment = Number(el("sMaxConcurrent").value) || 4;
   settings.expiringSoonDays = Number(el("sExpiringSoon").value) || 30;
-  settings.requiredCoursesByArea = readAreaRules();
+  settings.manualRequiredCoursesByArea = readAreaRules();
+  settings.requiredCoursesByArea = effectiveRules();
   saveSettings();
   closeSettings();
   if (lastParsedSchedule && lastParsedMatrixRecords) {
