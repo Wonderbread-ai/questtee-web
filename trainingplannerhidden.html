@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ── Reset / base ── */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: #1a1a1a; background: #f5f5f5; }
+a { color: #0d5257; }
+button { cursor: pointer; }
+
+/* ── Upload page ── */
+#uploadPage { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+.upload-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,.08); padding: 36px 40px; width: 100%; max-width: 640px; }
+.upload-card h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; color: #111; }
+.upload-card .subtitle { color: #666; margin: 0 0 28px; font-size: 13px; }
+.upload-section { margin-bottom: 20px; }
+.upload-section label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #333; }
+.upload-section .hint { font-size: 12px; color: #888; margin-bottom: 8px; }
+.drop-zone { border: 2px dashed #d0d0d0; border-radius: 8px; padding: 20px; text-align: center; color: #888; font-size: 13px; transition: border-color .15s, background .15s; cursor: pointer; position: relative; }
+.drop-zone:hover, .drop-zone.drag-over { border-color: #0d5257; background: #e8f2f2; color: #0d5257; }
+.drop-zone input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.drop-zone .dz-icon { font-size: 28px; margin-bottom: 6px; display: block; }
+.file-list { margin-top: 8px; }
+.file-item { display: flex; align-items: center; gap: 8px; background: #eef6f6; border: 1px solid #b9d6d7; border-radius: 6px; padding: 6px 10px; margin-top: 6px; font-size: 12px; color: #0d5257; }
+.file-item .remove-btn { margin-left: auto; background: none; border: none; color: #0d5257; font-size: 14px; padding: 0 2px; line-height: 1; }
+.file-item .remove-btn:hover { color: #dc2626; }
+.btn-primary { display: block; width: 100%; padding: 12px; background: #0d5257; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; margin-top: 24px; transition: background .15s; }
+.btn-primary:hover { background: #093d41; }
+.btn-primary:disabled { background: #8fb8ba; cursor: not-allowed; }
+.upload-error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 10px 14px; color: #991b1b; font-size: 13px; margin-top: 12px; display: none; }
+
+/* ── Dashboard toolbar ── */
+#dashPage { display: none; min-height: 100vh; }
+.toolbar { background: #0d5257; color: #fff; padding: 0 20px; display: flex; align-items: center; gap: 12px; height: 50px; position: sticky; top: 0; z-index: 100; }
+.toolbar h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: .03em; flex: 1; }
+.toolbar-btn { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: background .15s; }
+.toolbar-btn:hover { background: rgba(255,255,255,.22); }
+.toolbar-btn.icon-btn { padding: 6px 10px; font-size: 16px; }
+
+/* ── Main content ── */
+.dash-body { padding: 20px; max-width: 1200px; margin: 0 auto; }
+.week-label { font-size: 13px; color: #555; margin-bottom: 16px; }
+
+/* ── View toggles ── */
+.view-toggles { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.view-toggles label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #444; cursor: pointer; }
+.view-toggles input[type=checkbox] { accent-color: #0d5257; width: 15px; height: 15px; }
+
+/* ── Department / day filter chips ── */
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.filter-bar .filter-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
+.chip { padding: 4px 12px; border-radius: 999px; border: 1.5px solid #d0d0d0; background: #fff; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .12s; color: #555; }
+.chip:hover { border-color: #0d5257; color: #0d5257; }
+.chip.active { background: #0d5257; border-color: #0d5257; color: #fff; }
+.chip.all-chip { border-color: #aaa; }
+.chip.all-chip.active { background: #0d5257; border-color: #0d5257; }
+
+/* ── Section cards ── */
+.section-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.07); margin-bottom: 20px; overflow: hidden; }
+.section-header { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid #f0f0f0; gap: 10px; }
+.section-header h2 { margin: 0; font-size: 15px; font-weight: 700; color: #1a1a1a; flex: 1; }
+.section-toggle { background: none; border: none; color: #aaa; font-size: 18px; padding: 0; line-height: 1; }
+.section-body { padding: 16px 20px; }
+.section-body.collapsed { display: none; }
+
+/* ── Compliance headline boxes ── */
+.compliance-boxes { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.c-box { flex: 1; min-width: 140px; border-radius: 8px; padding: 14px 16px; }
+.c-box .c-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; opacity: .75; margin-bottom: 4px; }
+.c-box .c-value { font-size: 28px; font-weight: 800; line-height: 1; }
+.c-box .c-sub { font-size: 11px; opacity: .7; margin-top: 2px; }
+.c-box-current { background: #e3efef; color: #0d5257; }
+.c-box-target { background: #fef3c7; color: #92400e; }
+.c-box-projected { background: #d1fae5; color: #065f46; }
+.c-box-target .c-value input { width: 50px; background: none; border: none; border-bottom: 2px solid #d97706; font-size: 28px; font-weight: 800; color: inherit; outline: none; padding: 0; }
+
+/* ── Tables ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { background: #f9fafb; color: #555; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 8px 12px; text-align: left; border-bottom: 2px solid #e5e7eb; }
+.data-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: #fafafa; }
+.data-table .number { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Progress bar ── */
+.pbar-wrap { display: flex; align-items: center; gap: 8px; }
+.pbar { flex: 1; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; min-width: 60px; }
+.pbar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.pbar-pct { font-size: 12px; font-variant-numeric: tabular-nums; width: 36px; text-align: right; }
+.good { background: #22c55e; }
+.warn { background: #f59e0b; }
+.bad { background: #ef4444; }
+
+/* ── Status badges ── */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.badge-completed { background: #d1fae5; color: #065f46; }
+.badge-expired { background: #fee2e2; color: #991b1b; }
+.badge-not-started { background: #f3f4f6; color: #374151; }
+.badge-in-progress { background: #fef3c7; color: #92400e; }
+.badge-expiring { background: #fed7aa; color: #9a3412; }
+.badge-old { background: #ede9fe; color: #5b21b6; }
+.badge-no-matrix { background: #fce7f3; color: #9d174d; }
+
+/* ── Needs attention ── */
+.attention-item { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; }
+.attention-item.warn { background: #fef3c7; border-left: 3px solid #f59e0b; }
+.attention-item.info { background: #e8f2f2; border-left: 3px solid #1a8a91; }
+.attention-item strong { font-weight: 600; }
+
+/* ── Stats strip ── */
+.stats-strip { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.stat-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 16px; flex: 1; min-width: 120px; }
+.stat-box .stat-num { font-size: 22px; font-weight: 800; color: #0d5257; }
+.stat-box .stat-label { font-size: 11px; color: #888; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+/* ── Print ── */
+@media print {
+  body { background: #fff; font-size: 11px; }
+  .toolbar, .view-toggles, .filter-bar, .section-toggle, .toolbar-btn, #uploadPage { display: none !important; }
+  .section-card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; margin-bottom: 12px; }
+  .section-body.collapsed { display: block !important; }
+  .compliance-boxes { gap: 10px; }
+  .c-box { padding: 10px 12px; }
+  .c-box .c-value { font-size: 22px; }
+  .data-table th, .data-table td { padding: 5px 8px; }
+  @page { size: A4; margin: 15mm 12mm; }
+}
+
+/* ── Settings modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: none; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 28px 32px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+.modal h2 { margin: 0 0 20px; font-size: 17px; }
+.field-group { margin-bottom: 14px; }
+.field-group label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+.field-group input, .field-group select { width: 100%; padding: 7px 10px; border: 1.5px solid #d0d0d0; border-radius: 6px; font-size: 13px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.area-rule { display: flex; gap: 6px; align-items: flex-start; background: #f5fafa; border: 1px solid #dde4f0; border-radius: 8px; padding: 8px 10px; }
+.area-rule-fields { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.area-rule input[type="text"] { width: 100%; padding: 5px 8px; border: 1.5px solid #d0d0d0; border-radius: 5px; font-size: 12px; }
+.area-rule-hint { font-size: 11px; color: #888; }
+.area-rule-remove { background: none; border: none; color: #e44; font-size: 16px; cursor: pointer; padding: 2px 4px; line-height: 1; align-self: flex-start; }
+.btn-secondary { padding: 8px 18px; border: 1.5px solid #d0d0d0; border-radius: 6px; background: #fff; font-size: 13px; font-weight: 500; }
+.btn-save { padding: 8px 18px; border: none; border-radius: 6px; background: #0d5257; color: #fff; font-size: 13px; font-weight: 600; }
+
+/* ── Loading spinner ── */
+#loadingOverlay { position: fixed; inset: 0; background: rgba(255,255,255,.85); z-index: 300; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+#loadingOverlay.show { display: flex; }
+.spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #0d5257; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loadingMsg { font-size: 14px; color: #555; }
+
+/* ── Area chip groups ── */
+.area-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.area-group-label { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .07em; white-space: nowrap; min-width: 110px; flex-shrink: 0; }
+.area-group-btn { cursor: pointer; border-radius: 4px; padding: 1px 4px; transition: background .15s, color .15s; }
+.area-group-btn:hover { background: rgba(13,82,87,.10); color: #0d5257; }
+.area-group-btn.group-active { background: rgba(13,82,87,.18); color: #0d5257; }
+
+/* ── Empty / no data ── */
+.no-data { text-align: center; padding: 32px; color: #aaa; font-size: 13px; }
+</style>
+<meta name="robots" content="noindex, nofollow">
+<style>
+html:not(.tp-authed) body > *:not(#tpLogin) { display: none !important; }
+html.tp-authed #tpLogin { display: none !important; }
+#tpLogin { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #0d5257; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; z-index: 99999; padding: 16px; }
+#tpLogin form { background: #fff; border-radius: 12px; padding: 28px 24px; width: 100%; max-width: 340px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+#tpLogin h1 { margin: 0 0 4px; font-size: 22px; color: #0d5257; }
+#tpLogin p { margin: 0 0 20px; color: #666; font-size: 14px; }
+#tpLogin label { display: block; font-size: 13px; font-weight: 600; color: #333; margin: 12px 0 4px; }
+#tpLogin input { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; }
+#tpLogin input:focus { outline: 2px solid #1a8a91; border-color: transparent; }
+#tpLogin button { width: 100%; margin-top: 20px; padding: 11px; font-size: 16px; font-weight: 600; color: #fff; background: #0d5257; border: 0; border-radius: 8px; cursor: pointer; }
+#tpLogin button:hover { background: #093d41; }
+#tpLoginErr { color: #b91c1c; font-size: 13px; margin-top: 10px; min-height: 18px; }
+</style>
+<script>
+try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.classList.add("tp-authed"); } catch (e) {}
+</script>
+</head>
+<body>
+<div id="tpLogin">
+  <form id="tpLoginForm" autocomplete="on">
+    <h1>Training Planner</h1>
+    <p>Sign in to continue</p>
+    <label for="tpUser">Username</label>
+    <input id="tpUser" name="username" autocomplete="username" autocapitalize="off" required>
+    <label for="tpPass">Password</label>
+    <input id="tpPass" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <div id="tpLoginErr" role="alert"></div>
+  </form>
+</div>
+<script>
+(function () {
+  // Compact SHA-256 (works on https and file://)
+  function sha256(s) {
+    function r(n, x) { return (x >>> n) | (x << (32 - n)); }
+    var K = [], H = [], p = 2, c = 0;
+    function isP(n) { for (var f = 2; f * f <= n; f++) if (n % f === 0) return false; return true; }
+    while (c < 64) { if (isP(p)) { if (c < 8) H[c] = (Math.pow(p, 1 / 2) * 4294967296) | 0; K[c++] = (Math.pow(p, 1 / 3) * 4294967296) | 0; } p++; }
+    var b = unescape(encodeURIComponent(s)), w = [], l = b.length * 8, i, j;
+    for (i = 0; i < b.length; i++) w[i >> 2] |= b.charCodeAt(i) << ((3 - i % 4) * 8);
+    w[l >> 5] |= 0x80 << (24 - l % 32); w[((l + 64 >> 9) << 4) + 15] = l;
+    for (j = 0; j < w.length; j += 16) {
+      var a = H.slice(0), W = [];
+      for (i = 0; i < 64; i++) {
+        if (i < 16) W[i] = w[j + i] | 0;
+        else { var x = W[i - 15], y = W[i - 2]; W[i] = (W[i - 16] + (r(7, x) ^ r(18, x) ^ (x >>> 3)) + W[i - 7] + (r(17, y) ^ r(19, y) ^ (y >>> 10))) | 0; }
+        var t1 = (a[7] + (r(6, a[4]) ^ r(11, a[4]) ^ r(25, a[4])) + ((a[4] & a[5]) ^ (~a[4] & a[6])) + K[i] + W[i]) | 0;
+        var t2 = ((r(2, a[0]) ^ r(13, a[0]) ^ r(22, a[0])) + ((a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2]))) | 0;
+        a = [(t1 + t2) | 0].concat(a); a[4] = (a[4] + t1) | 0; a.length = 8;
+      }
+      for (i = 0; i < 8; i++) H[i] = (H[i] + a[i]) | 0;
+    }
+    return H.map(function (h) { return ("00000000" + (h >>> 0).toString(16)).slice(-8); }).join("");
+  }
+  var OK = "980d67c39a2c2e25bf20e416de7c503d4b7ddca1c27c0a189e88b2ae2cdf5f07";
+  document.getElementById("tpLoginForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var u = document.getElementById("tpUser").value.trim(), pw = document.getElementById("tpPass").value;
+    if (sha256(u + ":" + pw) === OK) {
+      try { sessionStorage.setItem("tpAuth", "1"); } catch (err) {}
+      document.documentElement.classList.add("tp-authed");
+    } else {
+      document.getElementById("tpLoginErr").textContent = "Incorrect username or password.";
+      document.getElementById("tpPass").value = "";
+    }
+  });
+})();
+</script>
+
+
+<!-- Loading overlay -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div id="loadingMsg">Processing files…</div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>⚙️ Settings</h2>
+    <div class="field-group"><label>Compliance target (%)</label><input type="number" id="sComplianceTarget" min="1" max="100"></div>
+    <div class="field-group"><label>Shift buffer (minutes each end)</label><input type="number" id="sShiftBuffer" min="0"></div>
+    <div class="field-group"><label>Max training per person per day (minutes)</label><input type="number" id="sMaxPerDay" min="15"></div>
+    <div class="field-group"><label>Max concurrent per department</label><input type="number" id="sMaxConcurrent" min="1"></div>
+    <div class="field-group"><label>Expiring soon window (days)</label><input type="number" id="sExpiringSoon" min="0"></div>
+
+    <div class="field-group" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <label style="font-weight:600">Required Courses by Area</label>
+      <div style="font-size:12px;color:#555;line-height:1.5">
+        Define which courses are mandatory for each rostered area. Anyone working in that area who doesn't have the course in their matrix will be treated as <strong>Not Started</strong> and scheduled for training.
+      </div>
+      <div id="reqCoursesEditor" style="width:100%;display:flex;flex-direction:column;gap:6px;"></div>
+      <button class="btn-secondary" id="addAreaRuleBtn" style="margin-top:4px;font-size:13px">+ Add Area Rule</button>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" id="settingsCancelBtn">Cancel</button>
+      <button class="btn-save" id="settingsSaveBtn">Save & Regenerate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ UPLOAD PAGE -->
+<div id="uploadPage">
+  <div class="upload-card">
+    <h1>Training Planner</h1>
+    <p class="subtitle">Upload a Weekly Employee Schedule and one or more Learning Matrix reports to generate the training plan.</p>
+
+    <!-- Schedule file -->
+    <div class="upload-section">
+      <label>Weekly Employee Schedule (.xlsx)</label>
+      <div class="hint">The roster export — one week of shifts for all staff.</div>
+      <div class="drop-zone" id="schedDrop">
+        <span class="dz-icon">📅</span>
+        <span>Drop file here or <strong>click to browse</strong></span>
+        <input type="file" id="schedFile" accept=".xlsx,.xlsm">
+      </div>
+      <div class="file-list" id="schedFileList"></div>
+    </div>
+
+    <!-- Matrix files -->
+    <div class="upload-section">
+      <label>Learning Matrix Report(s) (.xlsx)</label>
+      <div class="hint">One or more Learning Matrix Completion vs Non-Completion reports.</div>
+      <div class="drop-zone" id="matrixDrop">
+        <span class="dz-icon">📋</span>
+        <span>Drop file(s) here or <strong>click to browse</strong></span>
+        <input type="file" id="matrixFiles" accept=".xlsx,.xlsm" multiple>
+      </div>
+      <div class="file-list" id="matrixFileList"></div>
+    </div>
+
+    <div class="upload-error" id="uploadError"></div>
+    <button class="btn-primary" id="generateBtn" disabled>Generate Training Plan</button>
+  </div>
+</div>
+
+<!-- ============================================================ DASHBOARD PAGE -->
+<div id="dashPage">
+  <div class="toolbar">
+    <h1>Training Planner</h1>
+    <button class="toolbar-btn" id="settingsBtn">⚙ Settings</button>
+    <button class="toolbar-btn" id="newUploadBtn">↩ New files</button>
+    <button class="toolbar-btn icon-btn" id="printBtn" title="Print">🖨</button>
+  </div>
+
+  <div class="dash-body">
+    <div class="week-label" id="weekLabel"></div>
+
+    <!-- Stats strip -->
+    <div class="stats-strip" id="statsStrip"></div>
+
+    <!-- View toggles -->
+    <div class="view-toggles">
+      <label><input type="checkbox" id="toggleCompliance" checked> Compliance Summary</label>
+      <label><input type="checkbox" id="toggleDeptBreakdown" checked> Department Breakdown</label>
+      <label><input type="checkbox" id="togglePlanByDay" checked> Training Plan by Day</label>
+      <label><input type="checkbox" id="toggleRequired" checked> Training Required</label>
+      <label><input type="checkbox" id="toggleAttention" checked> Needs Attention</label>
+    </div>
+
+    <!-- Department filter -->
+    <div class="filter-bar" id="deptFilterBar">
+      <span class="filter-label">Dept:</span>
+    </div>
+
+    <!-- Day filter -->
+    <div class="filter-bar" id="dayFilterBar">
+      <span class="filter-label">Day:</span>
+    </div>
+
+    <!-- Old completions toggle -->
+    <div class="filter-bar" id="oldCompletionsBar">
+      <span class="filter-label">Include:</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:#444;cursor:pointer;">
+        <input type="checkbox" id="toggleOldCompletions" style="accent-color:#7c3aed;width:15px;height:15px;">
+        Completed &gt;1 year ago <span style="display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:600;">re-train</span>
+      </label>
+    </div>
+
+    <!-- Rostered Areas filter -->
+    <div id="areaFilterBar" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:nowrap;">
+        <span class="filter-label" style="padding-top:5px;white-space:nowrap;">AREA:</span>
+        <div id="areaChipsWrap" style="display:flex;flex-direction:column;gap:6px;flex:1;"></div>
+      </div>
+    </div>
+
+    <!-- Compliance Summary -->
+    <div class="section-card" id="cardCompliance">
+      <div class="section-header">
+        <h2>Compliance Summary</h2>
+        <button class="section-toggle" data-target="bodyCompliance">▾</button>
+      </div>
+      <div class="section-body" id="bodyCompliance"></div>
+    </div>
+
+    <!-- Department Breakdown -->
+    <div class="section-card" id="cardDeptBreakdown">
+      <div class="section-header">
+        <h2>Department Breakdown</h2>
+        <button class="section-toggle" data-target="bodyDeptBreakdown">▾</button>
+      </div>
+      <div class="section-body" id="bodyDeptBreakdown"></div>
+    </div>
+
+    <!-- Training Plan by Day -->
+    <div class="section-card" id="cardPlanByDay">
+      <div class="section-header">
+        <h2>Training Plan by Day</h2>
+        <button class="section-toggle" data-target="bodyPlanByDay">▾</button>
+      </div>
+      <div class="section-body" id="bodyPlanByDay"></div>
+    </div>
+
+    <!-- Training Required -->
+    <div class="section-card" id="cardRequired">
+      <div class="section-header">
+        <h2>Training Required</h2>
+        <button class="section-toggle" data-target="bodyRequired">▾</button>
+      </div>
+      <div class="section-body" id="bodyRequired"></div>
+    </div>
+
+    <!-- Needs Attention -->
+    <div class="section-card" id="cardAttention">
+      <div class="section-header">
+        <h2>Needs Attention</h2>
+        <button class="section-toggle" data-target="bodyAttention">▾</button>
+      </div>
+      <div class="section-body" id="bodyAttention"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ══════════════════════════════════════════════════
+// EMBEDDED DATA
+// ══════════════════════════════════════════════════
+const DEPARTMENT_GROUPS = {"blocks":[{"name":"SUPPORT","position":"left","headerExt":152,"capacity":10,"jobTitles":["TOOLSHOP REGISTER","PEOPLE GREETER","CSIP - BOX PACKER","REGISTER","CAR PARK ATT","NURSERY REGISTER","NURSERY GREETER","CAFE","CSIP - 2ND PEOPLE GREETER","RETURNS","BSCO","HIRE SHOP","INFO DESK","FRONT END SUPPORT","SPECIAL ORDERS"]},{"name":"BUILDING MATERIALS","position":"middle","headerExt":154,"capacity":10,"jobTitles":["HW & BUILD SUPP","PLUMBING","TOOLSHOP"],"supervisorTitle":"BUILDERS MANAGER"},{"name":"TRADE","position":"middle","headerExt":"199","capacity":10,"supervisorTitle":"TRADE MANAGER","jobTitles":["GATE KEEPER","TIMBER YARD","TRADE DESK","TRADE SPECIALIST","LOAD & GO","CSIP - TIMBER LOADER"]},{"name":"INSIDE THE HOME","position":"right","headerExt":156,"capacity":8,"jobTitles":["WINDOW COVERINGS","ELECTRICAL","PAINT","STORAGE & HOUSEWARES","MIDDLE AISLE HELPER","KITCH BATH & WARD","CSIP - PAINT TINTER","FLOORING"]},{"name":"LIFESTYLES & GARDEN","position":"right","headerExt":153,"capacity":8,"jobTitles":["GREENLIFE","CSIP -  LEISURE RUNNER","POWER GARDEN & TOOLS","LANDSCAPE YARD","LEISURE","PLANT & GARDEN CARE"]},{"name":"REPLENISHMENT","position":"left","headerExt":157,"capacity":10,"jobTitles":["REPLENISHMENT","SSA","GOODS INWARDS","MERCH INITIATIVES","HAND STOCK"]},{"name":"ADMINISTRATION","position":"right","headerExt":410,"capacity":6,"jobTitles":["RECEPTION","ACTIVITIES","PRICE INTEGRITY","STORE ADMIN","STORE VIBE"]}]};
+
+const DEFAULT_SETTINGS = {
+  slotMinutes: 15,
+  shiftBufferMinutes: 30,
+  maxMinutesPerPersonPerDay: 90,
+  maxConcurrentPerDepartment: 4,
+  expiringSoonDays: 30,
+  complianceTargetPercent: 90,
+  courses: [
+    { name: "SWP002 Pallet Jack (Online)", minutes: 30, validityMonths: 24 },
+    { name: "SWP010 Safety Knives (Online)", minutes: 30, validityMonths: 24 },
+    { name: "SWP011 Product Handling Equipment (Online)", minutes: 30, validityMonths: 24 },
+    { name: "Manual Handling - Fundamentals (Online)", minutes: 30, validityMonths: 12 },
+    { name: "Life Threatening Risk - Object Fall From Height (Online)", minutes: 30, validityMonths: null }
+  ],
+  // Map of area name (uppercase) → array of required course names
+  // Anyone rostered in that area who lacks one of these courses (not in matrix at all,
+  // or status is not Completed/In Progress) will have it injected as "Not Started".
+  requiredCoursesByArea: {}
+};
+
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+let schedBuffer = null, schedName = "";
+const matrixBuffers = []; // { buf, name }
+let currentPlan = null;
+let lastParsedSchedule = null;
+let lastParsedMatrixRecords = null;
+let settings = loadSettings();
+let activeDeptFilter = "ALL";
+let activeDayFilter = "ALL";
+let activeAreaFilter = new Set(); // empty = All
+let includeOldCompletions = false;
+const hiddenSections = loadHiddenSections();
+
+// ══════════════════════════════════════════════════
+// SETTINGS PERSISTENCE
+// ══════════════════════════════════════════════════
+function loadSettings() {
+  try { const s = JSON.parse(localStorage.getItem("tpSettings")); if (s && s.courses) return s; } catch(e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+}
+function saveSettings() { try { localStorage.setItem("tpSettings", JSON.stringify(settings)); } catch(e) {} }
+function loadHiddenSections() {
+  try { return new Set(JSON.parse(localStorage.getItem("tpHidden")) || []); } catch(e) { return new Set(); }
+}
+function saveHiddenSections() { try { localStorage.setItem("tpHidden", JSON.stringify([...hiddenSections])); } catch(e) {} }
+
+// ══════════════════════════════════════════════════
+// XLSX HELPERS (browser port of xlsxReader.js)
+// ══════════════════════════════════════════════════
+function excelSerialToDate(serial) {
+  // Excel epoch: 1900-01-00, but Excel wrongly treats 1900 as a leap year
+  const offset = serial > 59 ? 25569 : 25568; // 25569 = days from 1970-01-01 to 1900-01-00 corrected
+  return new Date((serial - 25569) * 86400 * 1000);
+}
+
+function readFirstSheetRows(buffer) {
+  const wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: false, cellNF: false, cellText: false });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: true });
+}
+
+function readAllSheets(buffer) {
+  const wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: false, cellNF: false, cellText: false });
+  return wb.SheetNames.map(name => ({
+    name,
+    rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null, blankrows: true })
+  }));
+}
+
+// ══════════════════════════════════════════════════
+// WEEKLY SCHEDULE PARSER (port of weeklyScheduleParser.js)
+// ══════════════════════════════════════════════════
+const DEPT_ALIASES = { "LIFESTYLE & GARDEN": "LIFESTYLES & GARDEN" };
+const DAY_LABELS = ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."];
+
+function isSectionHeaderRow(row) {
+  const a = row[0], c = row[2];
+  return typeof a === "string" && a.includes("/") && (c === undefined || c === null || c === "");
+}
+function isColumnHeaderRow(row) { return row[0] === "Employee" && row[2] === "Primary Job"; }
+function isEmployeeRow(row) {
+  const a = row[0], c = row[2];
+  return typeof a === "string" && a.includes(",") && typeof c === "string" && c.trim() !== "";
+}
+function sectionDeptName(text) {
+  const segs = text.split("/").map(s => s.trim()).filter(Boolean);
+  const raw = segs[segs.length - 1] || "";
+  return DEPT_ALIASES[raw] || raw;
+}
+function buildDayDateMap(colHeaderRow, dateRow) {
+  const map = {};
+  for (let col = 0; col < colHeaderRow.length; col++) {
+    if (DAY_LABELS.includes(colHeaderRow[col])) {
+      const serial = dateRow[col];
+      if (typeof serial === "number") {
+        map[col] = excelSerialToDate(serial).toISOString().slice(0, 10);
+      }
+    }
+  }
+  return map;
+}
+
+// Returns an array of week objects, one per distinct 7-day block found in the file.
+// Each week: { weekStartIso, weekEndIso, dates[], people[] }
+function parseWeeklyScheduleAllWeeks(buffer) {
+  const rows = readFirstSheetRows(buffer);
+
+  // Group rows by their week (identified by the Mon date in each date row)
+  // We detect week boundaries by noticing when the first date in a date-header row is different from the current week.
+  const weeks = []; // { weekStart, byName, allDates }
+  let currentWeek = null;
+  let currentDept = null;
+  let dayDateByCol = null;
+  let lastPerson = null; // most recent employee row — label rows beneath it belong to them
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    // Shift label row: blank name column, cells like "BUILDING MATERIALS/TOOLSHOP" under a shift.
+    // This is where the person actually worked that shift (can differ from their primary job).
+    if (lastPerson && dayDateByCol && (row[0] === undefined || row[0] === null || String(row[0]).trim() === "")) {
+      for (const col of Object.keys(dayDateByCol)) {
+        const v = row[Number(col)];
+        if (typeof v !== "string") continue;
+        const m = /^[^\/]+\/(.+)$/.exec(v.trim());
+        if (!m) continue;
+        const area = m[1].trim().toUpperCase();
+        lastPerson.labelAreas.add(area);
+        const sh = lastPerson.shifts[dayDateByCol[col]];
+        if (sh) sh.area = area;
+      }
+      continue;
+    }
+    if (isSectionHeaderRow(row)) { currentDept = sectionDeptName(row[0]); dayDateByCol = null; lastPerson = null; continue; }
+    if (isColumnHeaderRow(row)) {
+      lastPerson = null;
+      const newMap = buildDayDateMap(row, rows[r + 1] || []);
+      const dates = Object.values(newMap).sort();
+      if (!dates.length) continue;
+      const weekStart = dates[0];
+      // Start a new week block when the week start date changes
+      if (!currentWeek || currentWeek.weekStart !== weekStart) {
+        currentWeek = { weekStart, byName: new Map(), allDates: new Set() };
+        weeks.push(currentWeek);
+      }
+      dayDateByCol = newMap;
+      dates.forEach(d => currentWeek.allDates.add(d));
+      continue;
+    }
+    if (!isEmployeeRow(row) || !dayDateByCol || !currentWeek) { if (!isEmployeeRow(row)) lastPerson = null; continue; }
+
+    const fullName = row[0].trim();
+    let person = currentWeek.byName.get(fullName);
+    if (!person) {
+      person = { fullName, department: currentDept, job: row[2].trim(), shifts: {}, labelAreas: new Set() };
+      currentWeek.byName.set(fullName, person);
+    }
+    lastPerson = person;
+    for (const col of Object.keys(dayDateByCol)) {
+      const shift = row[Number(col)];
+      if (typeof shift !== "string") continue;
+      const m = /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/.exec(shift.trim());
+      if (m) person.shifts[dayDateByCol[col]] = { start: m[1], end: m[2] };
+    }
+  }
+
+  // Only keep shift labels that are real areas (a primary job somewhere in the file, or a
+  // known department job title). Drops TRAINING / SUPERVISOR / MEETING / numeric codes.
+  const knownAreas = new Set(DEPARTMENT_GROUPS.blocks.flatMap(b => b.jobTitles.map(j => j.toUpperCase())));
+  for (const w of weeks) for (const p of w.byName.values()) knownAreas.add(p.job.toUpperCase());
+
+  // Merge worked areas per person across ALL weeks in the file (e.g. 4-week roster)
+  const allWeeksByName = new Map(); // fullName -> { fullName, workedAreas:Set }
+  for (const w of weeks) for (const p of w.byName.values()) {
+    p.workedAreas = new Set([...p.labelAreas].filter(a => knownAreas.has(a) && a !== p.job.toUpperCase()));
+    const agg = allWeeksByName.get(p.fullName) || { fullName: p.fullName, job: p.job, workedAreas: new Set() };
+    p.workedAreas.forEach(a => agg.workedAreas.add(a));
+    allWeeksByName.set(p.fullName, agg);
+  }
+  const allWeeksPeople = [...allWeeksByName.values()];
+
+  return weeks.map(w => {
+    const dates = [...w.allDates].sort();
+    return { weekStartIso: dates[0] || null, weekEndIso: dates[dates.length - 1] || null, dates, people: [...w.byName.values()], allWeeksPeople, weekCount: weeks.length };
+  });
+}
+
+// Convenience: parse and return just one week (by index, default 0)
+function parseWeeklyScheduleWeek(buffer, weekIndex = 0) {
+  const weeks = parseWeeklyScheduleAllWeeks(buffer);
+  return weeks[weekIndex] || weeks[0] || { people: [], dates: [], weekStartIso: null, weekEndIso: null };
+}
+
+// ══════════════════════════════════════════════════
+// LEARNING MATRIX PARSER (port of learningMatrixParser.js)
+// ══════════════════════════════════════════════════
+function cellText(v) { if (v === undefined || v === null) return ""; return String(v).replace(/\s+/g, " ").trim(); }
+
+function toIsoDate(v) {
+  if (v === undefined || v === null || v === "") return null;
+  if (typeof v === "number") return excelSerialToDate(Math.floor(v)).toISOString().slice(0, 10);
+  const s = String(v).trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null;
+}
+
+function normStatus(s) {
+  const t = cellText(s).toLowerCase();
+  if (!t) return "";
+  if (t.startsWith("complete")) return "Completed";
+  if (t.startsWith("expired")) return "Expired";
+  if (t.startsWith("in progress") || t === "started") return "In Progress";
+  if (t.startsWith("not started") || t === "not completed" || t === "incomplete") return "Not Started";
+  return cellText(s);
+}
+
+function findHeaderRow(rows) {
+  for (let r = 1; r < Math.min(rows.length, 15); r++) {
+    const row = rows[r] || [];
+    const lower = row.map(c => cellText(c).toLowerCase());
+    if (lower.includes("name") && lower.some(c => /^course\s*\d+$/.test(c))) return r;
+  }
+  return -1;
+}
+
+function parseSheet(rows) {
+  const hr = findHeaderRow(rows);
+  if (hr === -1) return null;
+  const header = (rows[hr] || []).map(c => cellText(c).toLowerCase());
+  const col = name => header.indexOf(name);
+
+  const idCol = col("tmid"), nameCol = col("name"), posCol = col("positiontitle");
+  const teamCol = col("home team"), areasCol = col("rostered service areas");
+
+  const groups = [];
+  header.forEach((h, i) => {
+    const m = /^course\s*(\d+)$/.exec(h);
+    if (!m) return;
+    groups.push({ nameCol: i, doneCol: col(`course ${m[1]} completion`), statusCol: col(`course ${m[1]} status`) });
+  });
+
+  const records = [];
+  for (let r = hr + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const name = cellText(row[nameCol]);
+    if (!name) continue;
+    const courses = [];
+    for (const g of groups) {
+      const courseName = cellText(row[g.nameCol]);
+      if (!courseName) continue;
+      courses.push({ name: courseName, status: g.statusCol >= 0 ? normStatus(row[g.statusCol]) : "", completedOn: g.doneCol >= 0 ? toIsoDate(row[g.doneCol]) : null });
+    }
+    records.push({ tmId: idCol >= 0 ? cellText(row[idCol]) : "", name, position: posCol >= 0 ? cellText(row[posCol]) : "", homeTeam: teamCol >= 0 ? cellText(row[teamCol]) : "", areas: areasCol >= 0 ? String(row[areasCol] || "").split(/\n+/).map(s => s.trim()).filter(Boolean) : [], courses });
+  }
+  return records;
+}
+
+function parseLearningMatrix(buffer, fileName) {
+  const sheets = readAllSheets(buffer);
+  const records = [], sheetsRead = [], sheetsSkipped = [];
+  for (const sheet of sheets) {
+    const parsed = parseSheet(sheet.rows);
+    if (parsed) { records.push(...parsed); sheetsRead.push(`${fileName} › ${sheet.name} (${parsed.length} people)`); }
+    else sheetsSkipped.push(`${fileName} › ${sheet.name}`);
+  }
+  return { records, sheetsRead, sheetsSkipped };
+}
+
+const STATUS_RANK = { Expired: 3, "Not Started": 3, "In Progress": 2, "Completed (>1yr)": 1, Completed: 1 };
+
+function mergeRecords(allRecords) {
+  const people = new Map();
+  for (const rec of allRecords) {
+    const key = rec.tmId || `name:${rec.name.toLowerCase()}`;
+    let p = people.get(key);
+    if (!p) { p = { ...rec, courses: new Map() }; people.set(key, p); }
+    for (const c of rec.courses) {
+      const existing = p.courses.get(c.name);
+      if (!existing) { p.courses.set(c.name, c); continue; }
+      const a = existing.completedOn || "", b = c.completedOn || "";
+      if (b > a || (b === a && (STATUS_RANK[c.status] || 0) > (STATUS_RANK[existing.status] || 0))) p.courses.set(c.name, c);
+    }
+  }
+  return [...people.values()].map(p => ({ ...p, courses: [...p.courses.values()] }));
+}
+
+// ══════════════════════════════════════════════════
+// ROSTER HELPERS (port of roster.js)
+// ══════════════════════════════════════════════════
+function norm(s) { return (s || "").toString().trim().toUpperCase(); }
+
+function computeRawValue(department, job) {
+  const dept = norm(department), jobU = norm(job);
+  if (jobU.includes("KEY") || jobU.includes("SUPERVISOR")) return dept + "key holder";
+  if (jobU.includes("MERCH")) return dept + "MERCH INITIATIVES";
+  return jobU;
+}
+
+function findBlock(rawValue, department, blocks) {
+  const dept = norm(department);
+  if (/key$|key holder$/i.test(rawValue) || /merch initiatives$/i.test(rawValue)) {
+    const byDept = blocks.find(b => b.name === dept);
+    if (byDept) return byDept;
+  }
+  const byJobTitle = blocks.find(b => b.jobTitles.includes(rawValue));
+  if (byJobTitle) return byJobTitle;
+  return blocks.find(b => b.name === dept) || null;
+}
+
+// ══════════════════════════════════════════════════
+// TRAINING PLANNER ENGINE (port of trainingPlanner.js)
+// ══════════════════════════════════════════════════
+const STATUS_ORDER = { Expired: 0, "Not Started": 1, "In Progress": 2, "Expiring soon": 3, "Completed (>1yr)": 4 };
+const toMin = hhmm => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+const fmt = min => `${String(Math.floor(min / 60)).padStart(2,"0")}:${String(min % 60).padStart(2,"0")}`;
+
+function addMonthsIso(iso, months) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + months, d));
+  if (dt.getUTCDate() !== d) dt.setUTCDate(0);
+  return dt.toISOString().slice(0, 10);
+}
+function addDaysIso(iso, days) {
+  const dt = new Date(iso + "T00:00:00Z");
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+const tokens = s => s.toLowerCase().replace(/[^a-z\s'-]/g," ").replace(/[-']/g,"").split(/\s+/).filter(Boolean);
+const matrixKey = name => tokens(name).sort().join(" ");
+const scheduleKey = name => tokens(name.replace(",", " ")).sort().join(" ");
+function matrixFirstLast(name) { const t = tokens(name); return t.length > 1 ? `${t[0]} ${t[t.length-1]}` : t[0] || ""; }
+function scheduleFirstLast(name) {
+  const [last="", first=""] = name.split(",");
+  const lt = tokens(last), ft = tokens(first);
+  return ft.length && lt.length ? `${ft[0]} ${lt[lt.length-1]}` : "";
+}
+
+function courseSetting(s, name) { return (s.courses||[]).find(c => c.name === name) || { name, minutes: 30, validityMonths: null }; }
+
+function computeNeeds(record, s, weekStartIso) {
+  const needs = [], unknownStatuses = [];
+  const horizon = addDaysIso(weekStartIso, s.expiringSoonDays || 0);
+  for (const c of record.courses) {
+    const cfg = courseSetting(s, c.name);
+    let status = null, expiresOn = null;
+    if (c.completedOn && cfg.validityMonths) expiresOn = addMonthsIso(c.completedOn, cfg.validityMonths);
+    if (c.status === "Expired" || c.status === "Not Started" || c.status === "In Progress") status = c.status;
+    else if (c.status === "Completed") {
+      if (expiresOn && expiresOn <= horizon) {
+        status = "Expiring soon";
+      } else if (s.includeOldCompletions && c.completedOn && c.completedOn < addDaysIso(weekStartIso, -365)) {
+        status = "Completed (>1yr)";
+      }
+    } else unknownStatuses.push(`${c.name}: "${c.status || "blank"}"`);
+    if (status) needs.push({ course: c.name, status, completedOn: c.completedOn, expiresOn, minutes: Number(cfg.minutes) || 30 });
+  }
+  needs.sort((a,b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.course.localeCompare(b.course));
+  return { needs, unknownStatuses };
+}
+
+function indexSchedule(people) {
+  const exact = new Map(), fl = new Map();
+  for (const p of people) {
+    const k = scheduleKey(p.fullName);
+    exact.set(k, [...(exact.get(k)||[]), p]);
+    const fl_k = scheduleFirstLast(p.fullName);
+    if (fl_k) fl.set(fl_k, [...(fl.get(fl_k)||[]), p]);
+  }
+  return { exact, fl };
+}
+function matchPerson(name, idx) {
+  const a = idx.exact.get(matrixKey(name));
+  if (a && a.length === 1) return a[0];
+  const b = idx.fl.get(matrixFirstLast(name));
+  if (b && b.length === 1) return b[0];
+  return null;
+}
+
+function departmentOf(person, departmentGroups) {
+  const raw = computeRawValue(person.department, person.job);
+  const block = findBlock(raw, person.department, departmentGroups.blocks);
+  return block ? block.name : (person.department || "OTHER").toUpperCase();
+}
+
+function buildTrainingPlan({ matrixRecords, schedule, departmentGroups, settings: s }) {
+  const slot = s.slotMinutes || 15, maxPerDay = s.maxMinutesPerPersonPerDay || 90;
+  const maxConcurrent = s.maxConcurrentPerDepartment || 4, buffer = s.shiftBufferMinutes || 0;
+  const weekStart = schedule.weekStartIso;
+  const idx = indexSchedule(schedule.people);
+  // Index of everyone across all weeks in the file, with the areas they worked
+  const allIdx = indexSchedule(schedule.allWeeksPeople || schedule.people);
+  const workedAreasFor = (name) => {
+    const ap = matchPerson(name, allIdx);
+    return ap && ap.workedAreas ? [...ap.workedAreas] : [];
+  };
+
+  const unknownStatuses = [], notRostered = [], participants = [], required = [];
+  let upToDate = 0;
+  const matched = new Set();
+  const compliance = new Map(), deptCompliance = new Map();
+
+  for (const rec of matrixRecords) {
+    const { needs, unknownStatuses: u } = computeNeeds(rec, s, weekStart);
+    u.forEach(x => unknownStatuses.push(`${rec.name} – ${x}`));
+    const spEarly = matchPerson(rec.name, idx);
+    const deptForStats = spEarly && Object.keys(spEarly.shifts).length ? departmentOf(spEarly, departmentGroups) : "NOT ROSTERED THIS WEEK";
+    let countedForDept = false;
+    for (const c of rec.courses) {
+      if (!["Completed","Expired","Not Started","In Progress","Completed (>1yr)"].includes(c.status)) continue;
+      const dc = deptCompliance.get(deptForStats) || { people: 0, courses: new Map() };
+      if (!countedForDept) { dc.people++; countedForDept = true; }
+      const dcc = dc.courses.get(c.name) || { assigned: 0, completed: 0 };
+      dcc.assigned++; if (c.status === "Completed") dcc.completed++;
+      dc.courses.set(c.name, dcc); deptCompliance.set(deptForStats, dc);
+      const row = compliance.get(c.name) || { course: c.name, assigned: 0, completed: 0 };
+      row.assigned++; if (c.status === "Completed") row.completed++;
+      compliance.set(c.name, row);
+    }
+    const sp = matchPerson(rec.name, idx);
+    if (sp) matched.add(sp);
+    const dept = sp ? departmentOf(sp, departmentGroups) : "NOT ROSTERED";
+    const shifts = sp ? sp.shifts : {};
+    const primaryJob = sp ? sp.job : (rec.position || "");
+
+    // Inject any area-required courses this person is missing from their matrix record.
+    // We check their primaryJob (schedule role) against requiredCoursesByArea in settings.
+    // If a required course isn't in their matrix at all, we add it as "Not Started".
+    const reqByArea = s.requiredCoursesByArea || {};
+    const pjUpper = (primaryJob || "").toUpperCase();
+    // Areas this person works in: primary job + any area they were rostered to on a shift
+    // (from the shift labels, across every week in the schedule file).
+    const workedAreas = workedAreasFor(rec.name).filter(a => a !== pjUpper);
+    const personAreas = new Set([pjUpper, ...workedAreas]);
+    // Build a map of course name → course object so we can check status
+    const existingCourseMap = new Map((rec.courses || []).map(c => [c.name, c]));
+    const injectedCourses = [];
+    const seenReq = new Set();
+    for (const [areaKey, coursesForArea] of Object.entries(reqByArea)) {
+      if (!personAreas.has(areaKey.toUpperCase())) continue;
+      for (const reqCourseName of (coursesForArea || [])) {
+        if (seenReq.has(reqCourseName)) continue; // required by more than one of their areas
+        seenReq.add(reqCourseName);
+        const existing = existingCourseMap.get(reqCourseName);
+        if (existing) {
+          // Course is in the matrix — but if status is blank it means not yet assigned.
+          // Treat blank status on a required course as "Not Started".
+          const st = (existing.status || "").trim();
+          if (!st) {
+            // Upgrade this existing blank-status course to Not Started for needs/compliance
+            const cfg = courseSetting(s, reqCourseName);
+            injectedCourses.push({ name: reqCourseName, status: "Not Started", completedOn: null, injected: true });
+            needs.push({ course: reqCourseName, status: "Not Started", completedOn: null, expiresOn: null, minutes: Number(cfg.minutes) || 30 });
+          }
+          // If it has a real status, computeNeeds() already handled it above
+          continue;
+        }
+        // Not in matrix at all — inject as Not Started
+        const cfg = courseSetting(s, reqCourseName);
+        injectedCourses.push({ name: reqCourseName, status: "Not Started", completedOn: null, injected: true });
+        needs.push({ course: reqCourseName, status: "Not Started", completedOn: null, expiresOn: null, minutes: Number(cfg.minutes) || 30 });
+      }
+    }
+    // Merge injected courses into allCourses for compliance counting.
+    // For allCourses, exclude the original blank-status entries that we upgraded via injection
+    // so we don't double-count them.
+    const injectedNames = new Set(injectedCourses.map(c => c.name));
+    const baseCoursesFiltered = (rec.courses || []).filter(c => !injectedNames.has(c.name) || (c.status || "").trim() !== "");
+    const allCourses = [...baseCoursesFiltered, ...injectedCourses];
+
+    const entry = { name: rec.name, tmId: rec.tmId, position: rec.position, primaryJob, workedAreas, areas: rec.areas || [], dept, shifts, needs, allCourses, rostered: Boolean(sp && Object.keys(shifts).length) };
+    if (!needs.length) { upToDate++; } // compliant — still add to required so compliance filter can count their completed courses
+    required.push(entry);
+    if (needs.length && entry.rostered) participants.push(entry); else if (needs.length) notRostered.push(entry);
+  }
+
+  // Add rostered people who had no matrix record — flag them as needing assessment
+  for (const sp of schedule.people) {
+    if (matched.has(sp)) continue; // already linked to a matrix record
+    if (!Object.keys(sp.shifts).length) continue; // not actually working this week
+    const dept = departmentOf(sp, departmentGroups);
+    const notInMatrixEntry = {
+      name: sp.fullName, tmId: "", position: sp.job, primaryJob: sp.job,
+      workedAreas: (() => { const ap = (schedule.allWeeksPeople || []).find(x => x.fullName === sp.fullName); return ap ? [...ap.workedAreas] : []; })(),
+      areas: [], dept, shifts: sp.shifts,
+      needs: [{ course: "⚠ Not in Learning Matrix", status: "Not in Matrix", completedOn: null, expiresOn: null, minutes: 0 }],
+      rostered: true, notInMatrix: true
+    };
+    required.push(notInMatrixEntry);
+  }
+
+  const deptOrder = departmentGroups.blocks.map(b => b.name);
+  const rank = d => { const i = deptOrder.indexOf(d); return i === -1 ? 99 : i; };
+  const byDeptName = (a,b) => rank(a.dept)-rank(b.dept) || a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name);
+  required.sort(byDeptName); notRostered.sort(byDeptName);
+
+  const order = [...participants].sort((a,b) => rank(a.dept)-rank(b.dept) || a.dept.localeCompare(b.dept) || Object.keys(a.shifts).length-Object.keys(b.shifts).length || a.name.localeCompare(b.name));
+
+  const occ = new Map(), personBusy = new Map(), personMins = new Map();
+  const sessions = [], unscheduled = [];
+  const slotKey = (d,i) => `${d}|${i}`;
+
+  function fits(p, date, startMin, len, joinOnly) {
+    const first = startMin/slot, n = len/slot;
+    const busy = personBusy.get(`${p.name}|${date}`);
+    for (let i = first; i < first+n; i++) {
+      if (busy && busy.has(i)) return false;
+      const o = occ.get(slotKey(date, i));
+      if (joinOnly) { if (!o || o.dept !== p.dept || o.count >= maxConcurrent) return false; }
+      else if (o && (o.dept !== p.dept || o.count >= maxConcurrent)) return false;
+    }
+    return true;
+  }
+  function book(p, date, startMin, len) {
+    const first = startMin/slot, n = len/slot;
+    const bk = `${p.name}|${date}`;
+    if (!personBusy.has(bk)) personBusy.set(bk, new Set());
+    for (let i = first; i < first+n; i++) {
+      personBusy.get(bk).add(i);
+      const k = slotKey(date,i), o = occ.get(k);
+      if (o) o.count++; else occ.set(k, { dept: p.dept, count: 1 });
+    }
+    personMins.set(bk, (personMins.get(bk)||0) + len);
+  }
+
+  for (const p of order) {
+    const days = Object.keys(p.shifts).sort();
+    for (const need of p.needs) {
+      const len = Math.ceil(need.minutes/slot)*slot;
+      let placed = false;
+      const attempts = [[buffer, true],[buffer, false],[0, true],[0, false]];
+      for (const [buf, joinOnly] of attempts) {
+        for (const date of days) {
+          if ((personMins.get(`${p.name}|${date}`)||0) + len > maxPerDay) continue;
+          const sh = p.shifts[date];
+          const winStart = Math.ceil((toMin(sh.start)+buf)/slot)*slot;
+          const winEnd = toMin(sh.end)-buf;
+          for (let s2 = winStart; s2+len <= winEnd; s2 += slot) {
+            if (!fits(p, date, s2, len, joinOnly)) continue;
+            book(p, date, s2, len);
+            sessions.push({ date, start: fmt(s2), end: fmt(s2+need.minutes), startMin: s2, name: p.name, dept: p.dept, position: p.position, primaryJob: p.primaryJob, workedAreas: p.workedAreas || [], areas: p.areas || [], shift: `${sh.start}–${sh.end}`, course: need.course, status: need.status, expiresOn: need.expiresOn });
+            placed = true; break;
+          }
+          if (placed) break;
+        }
+        if (placed) break;
+      }
+      if (!placed) unscheduled.push({ name: p.name, dept: p.dept, course: need.course, status: need.status, reason: days.length ? "No free time inside their shifts without clashing with another department" : "Not rostered" });
+    }
+  }
+
+  sessions.sort((a,b) => a.date.localeCompare(b.date) || a.startMin-b.startMin || rank(a.dept)-rank(b.dept) || a.name.localeCompare(b.name));
+
+  const schedulePeopleWithoutMatrix = schedule.people.filter(p => !matched.has(p) && Object.keys(p.shifts).length).map(p => p.fullName);
+  const target = Number(s.complianceTargetPercent) || 90;
+  const pct = (a,b) => b ? (a/b)*100 : 100;
+  const courseRows = [...compliance.values()].map(r => {
+    const booked = sessions.filter(s2 => s2.course === r.course && s2.status !== "Expiring soon").length;
+    return { ...r, outstanding: r.assigned-r.completed, percent: pct(r.completed,r.assigned), projectedPercent: pct(Math.min(r.assigned, r.completed+booked), r.assigned) };
+  });
+  const sum = k => courseRows.reduce((t,r) => t+r[k], 0);
+  const totalAssigned = sum("assigned"), totalCompleted = sum("completed");
+  const totalBooked = courseRows.reduce((t,r) => t + (r.projectedPercent/100)*r.assigned - r.completed, 0);
+  const complianceSummary = {
+    target, courses: courseRows,
+    total: { assigned: totalAssigned, completed: totalCompleted, outstanding: totalAssigned-totalCompleted, percent: pct(totalCompleted, totalAssigned), projectedPercent: pct(totalCompleted + Math.round(totalBooked), totalAssigned) }
+  };
+  const deptRows = [...deptCompliance.entries()].map(([dept, dc]) => {
+    let assigned=0, completed=0, booked=0; const perCourse = {};
+    for (const [course, v] of dc.courses) {
+      const b = sessions.filter(s2 => s2.dept === dept && s2.course === course && s2.status !== "Expiring soon").length;
+      assigned += v.assigned; completed += v.completed; booked += Math.min(v.assigned-v.completed, b);
+      perCourse[course] = { ...v, percent: pct(v.completed, v.assigned) };
+    }
+    return { dept, people: dc.people, assigned, completed, outstanding: assigned-completed, percent: pct(completed,assigned), projectedPercent: pct(completed+booked, assigned), perCourse };
+  }).sort((a,b) => rank(a.dept)-rank(b.dept) || a.dept.localeCompare(b.dept));
+  complianceSummary.departments = deptRows;
+
+  const departments = [...new Set(participants.map(r => r.dept))].sort((a,b) => rank(a)-rank(b) || a.localeCompare(b));
+
+  // Build the Rostered Areas list from primary job titles only (what people are actually
+  // scheduled as this week). We exclude cross-trained areas from the matrix because
+  // the area chips filter by schedule position — matching on matrix areas would pull in
+  // people from other departments into a filtered compliance view.
+  const allAreaSet = new Set();
+  for (const r of required) {
+    if (r.primaryJob) allAreaSet.add(r.primaryJob.toUpperCase());
+    (r.workedAreas || []).forEach(a => allAreaSet.add(a));
+  }
+  const rosterAreas = [...allAreaSet].sort();
+
+  return {
+    weekStartIso: weekStart, weekEndIso: schedule.weekEndIso, dates: schedule.dates,
+    complianceSummary, sessions, required, notRostered, unscheduled, departments, rosterAreas, unknownStatuses, schedulePeopleWithoutMatrix,
+    stats: { peopleInReport: matrixRecords.length, upToDate, needTraining: required.filter(r => r.needs && r.needs.length > 0).length, sessions: sessions.length, scheduledPeople: new Set(sessions.map(s => s.name)).size }
+  };
+}
+
+// ══════════════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════════════
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function formatDate(iso) {
+  if (!iso) return "";
+  const [y,m,d] = iso.split("-");
+  const dt = new Date(Date.UTC(Number(y),Number(m)-1,Number(d)));
+  return dt.toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:"UTC" });
+}
+
+function pbarColor(pct, target) {
+  if (pct >= target) return "good";
+  if (pct >= target * 0.75) return "warn";
+  return "bad";
+}
+
+function pbarHtml(pct, target) {
+  const cls = pbarColor(pct, target);
+  return `<div class="pbar-wrap"><div class="pbar"><div class="pbar-fill ${cls}" style="width:${Math.min(100,pct).toFixed(1)}%"></div></div><span class="pbar-pct">${pct.toFixed(0)}%</span></div>`;
+}
+
+function statusBadge(status) {
+  const map = { "Completed":"badge-completed","Expired":"badge-expired","Not Started":"badge-not-started","In Progress":"badge-in-progress","Expiring soon":"badge-expiring","Completed (>1yr)":"badge-old","Not in Matrix":"badge-no-matrix" };
+  return `<span class="badge ${map[status]||""}">${esc(status)}</span>`;
+}
+
+// Returns true if a plan entry (required row or session) matches the active area filter.
+// Checks primaryJob and all rostered service areas, case-insensitive.
+function matchesAreaFilter(entry) {
+  if (!activeAreaFilter.size) return true; // empty set = All
+  // Match on primaryJob only (what they're rostered AS this week, from the schedule).
+  // We intentionally do NOT match on cross-trained areas from the matrix, because that
+  // would pull in people from other departments who happen to be cross-trained here,
+  // inflating compliance numbers with courses irrelevant to the selected area.
+  const pj = (entry.primaryJob || "").toUpperCase();
+  if (activeAreaFilter.has(pj)) return true;
+  // Also match areas they were actually rostered to on a shift (from the schedule's shift labels)
+  return (entry.workedAreas || []).some(a => activeAreaFilter.has(a));
+}
+
+// Which of a person's courses count toward the filtered compliance view:
+// only courses required for the selected areas this person belongs to
+// (their primary job and/or areas they worked shifts in).
+function coursesInFilter(entry, courses) {
+  if (!activeAreaFilter.size) return courses;
+  if (entry.notInMatrix) return courses;
+  const req = settings.requiredCoursesByArea || {};
+  const allowed = new Set();
+  for (const a of [(entry.primaryJob || "").toUpperCase(), ...(entry.workedAreas || [])]) {
+    if (!activeAreaFilter.has(a)) continue;
+    for (const [k, list] of Object.entries(req)) if (k.toUpperCase() === a) (list || []).forEach(c => allowed.add(c));
+  }
+  return courses.filter(c => allowed.has(c.course || c.name));
+}
+
+function showLoading(msg) { el("loadingMsg").textContent = msg || "Processing…"; el("loadingOverlay").classList.add("show"); }
+function hideLoading() { el("loadingOverlay").classList.remove("show"); }
+
+function showError(msg) { const e = el("uploadError"); e.textContent = msg; e.style.display = "block"; }
+function hideError() { el("uploadError").style.display = "none"; }
+
+// ══════════════════════════════════════════════════
+// FILE DROP ZONE SETUP
+// ══════════════════════════════════════════════════
+function setupDropZone(zoneId, inputId, listId, multi) {
+  const zone = el(zoneId), input = el(inputId), list = el(listId);
+  const files = [];
+
+  function renderList() {
+    list.innerHTML = files.map((f,i) => `<div class="file-item">📄 ${esc(f.name)} <button class="remove-btn" data-idx="${i}">✕</button></div>`).join("");
+    list.querySelectorAll(".remove-btn").forEach(btn => btn.addEventListener("click", e => {
+      files.splice(Number(e.target.dataset.idx), 1);
+      renderList(); updateGenBtn();
+    }));
+    updateGenBtn();
+  }
+
+  function addFiles(newFiles) {
+    if (!multi) files.length = 0;
+    for (const f of newFiles) {
+      if (!files.some(x => x.name === f.name)) files.push(f);
+    }
+    renderList();
+  }
+
+  input.addEventListener("change", () => { addFiles(input.files); input.value = ""; });
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drag-over"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+  zone.addEventListener("drop", e => { e.preventDefault(); zone.classList.remove("drag-over"); addFiles(e.dataTransfer.files); });
+
+  return { getFiles: () => [...files] };
+}
+
+// ══════════════════════════════════════════════════
+// RENDER DASHBOARD
+// ══════════════════════════════════════════════════
+function renderDashboard(plan) {
+  currentPlan = plan;
+  const target = plan.complianceSummary.target;
+
+  // Sync toggle states that survive re-renders
+  el("toggleOldCompletions").checked = includeOldCompletions;
+
+  // Week label — show navigation when schedule has multiple weeks
+  if (_parsedWeeks.length > 1) {
+    const prevDisabled = _selectedWeekIndex === 0 ? "disabled" : "";
+    const nextDisabled = _selectedWeekIndex >= _parsedWeeks.length - 1 ? "disabled" : "";
+    el("weekLabel").innerHTML = `
+      <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button class="week-nav-btn" id="weekPrev" ${prevDisabled} style="padding:2px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font-size:13px;" onclick="changeWeek(-1)">‹ Prev</button>
+        <strong>Week: ${formatDate(plan.weekStartIso)} – ${formatDate(plan.weekEndIso)}</strong>
+        <span style="color:#888;font-size:12px">(${_selectedWeekIndex + 1} of ${_parsedWeeks.length})</span>
+        <button class="week-nav-btn" id="weekNext" ${nextDisabled} style="padding:2px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font-size:13px;" onclick="changeWeek(1)">Next ›</button>
+      </span>`;
+  } else {
+    el("weekLabel").textContent = `Week: ${formatDate(plan.weekStartIso)} – ${formatDate(plan.weekEndIso)}`;
+  }
+
+  // Stats strip
+  const st = plan.stats;
+  el("statsStrip").innerHTML = [
+    { n: st.peopleInReport, l: "In Report" },
+    { n: st.upToDate, l: "Up to Date" },
+    { n: st.needTraining, l: "Need Training" },
+    { n: st.sessions, l: "Sessions Planned" },
+    { n: st.scheduledPeople, l: "People Scheduled" },
+    { n: plan.notRostered.length, l: "Not Rostered" },
+    { n: plan.unscheduled.length, l: "Unscheduled" }
+  ].map(x => `<div class="stat-box"><div class="stat-num">${x.n}</div><div class="stat-label">${x.l}</div></div>`).join("");
+
+  // Department filter chips
+  const deptBar = el("deptFilterBar");
+  deptBar.innerHTML = '<span class="filter-label">Dept:</span>';
+  const allDeptChip = document.createElement("span");
+  allDeptChip.className = "chip all-chip" + (activeDeptFilter === "ALL" ? " active" : "");
+  allDeptChip.textContent = "All";
+  allDeptChip.addEventListener("click", () => { activeDeptFilter = "ALL"; renderDashboard(currentPlan); });
+  deptBar.appendChild(allDeptChip);
+  plan.departments.forEach(dept => {
+    const chip = document.createElement("span");
+    chip.className = "chip" + (activeDeptFilter === dept ? " active" : "");
+    chip.textContent = dept;
+    chip.addEventListener("click", () => { activeDeptFilter = dept; renderDashboard(currentPlan); });
+    deptBar.appendChild(chip);
+  });
+
+  // Day filter chips
+  const dayBar = el("dayFilterBar");
+  dayBar.innerHTML = '<span class="filter-label">Day:</span>';
+  const allDayChip = document.createElement("span");
+  allDayChip.className = "chip all-chip" + (activeDayFilter === "ALL" ? " active" : "");
+  allDayChip.textContent = "All";
+  allDayChip.addEventListener("click", () => { activeDayFilter = "ALL"; renderDashboard(currentPlan); });
+  dayBar.appendChild(allDayChip);
+  plan.dates.forEach(date => {
+    const chip = document.createElement("span");
+    chip.className = "chip" + (activeDayFilter === date ? " active" : "");
+    chip.textContent = formatDate(date).replace(/\d{4}$/, "").trim();
+    chip.title = date;
+    chip.addEventListener("click", () => { activeDayFilter = date; renderDashboard(currentPlan); });
+    dayBar.appendChild(chip);
+  });
+
+  // ── Rostered Areas — grouped chips ──
+  const chipsWrap = el("areaChipsWrap");
+  chipsWrap.innerHTML = "";
+
+  function makeAreaChip(value, label) {
+    const c = document.createElement("span");
+    const isAll = value === "ALL";
+    const isActive = isAll ? !activeAreaFilter.size : activeAreaFilter.has(value);
+    c.className = "chip" + (isActive ? " active" : "");
+    if (isAll) c.classList.add("all-chip");
+    c.textContent = label;
+    c.addEventListener("click", () => {
+      if (isAll) {
+        activeAreaFilter.clear();
+      } else {
+        if (activeAreaFilter.has(value)) {
+          activeAreaFilter.delete(value);
+        } else {
+          activeAreaFilter.add(value);
+        }
+      }
+      renderDashboard(currentPlan);
+    });
+    return c;
+  }
+
+  // "All" row
+  const allRow = document.createElement("div");
+  allRow.className = "area-group";
+  allRow.appendChild(makeAreaChip("ALL", "All"));
+  chipsWrap.appendChild(allRow);
+
+  // One row per department block — only show blocks that have matching areas in this plan
+  const areaSet = new Set(plan.rosterAreas);
+  for (const block of DEPARTMENT_GROUPS.blocks) {
+    // Also check case-insensitively
+    const blockAreasFinal = plan.rosterAreas.filter(a =>
+      block.jobTitles.some(j => j.toUpperCase() === a.toUpperCase())
+    );
+    if (!blockAreasFinal.length) continue;
+    const row = document.createElement("div");
+    row.className = "area-group";
+
+    // Group label — click to select/deselect all areas in this group
+    const lbl = document.createElement("span");
+    lbl.className = "area-group-label area-group-btn";
+    lbl.title = "Click to select all " + block.name + " areas";
+    lbl.textContent = block.name;
+    const allInGroup = blockAreasFinal.map(a => a.toUpperCase());
+    // Mark label active if all group areas are selected
+    const allSelected = allInGroup.length > 0 && allInGroup.every(a => activeAreaFilter.has(a));
+    if (allSelected) lbl.classList.add("group-active");
+    lbl.addEventListener("click", () => {
+      const nowAllSelected = allInGroup.every(a => activeAreaFilter.has(a));
+      if (nowAllSelected) {
+        // Deselect all in group
+        allInGroup.forEach(a => activeAreaFilter.delete(a));
+      } else {
+        // Select all in group
+        allInGroup.forEach(a => activeAreaFilter.add(a));
+      }
+      renderDashboard(currentPlan);
+    });
+    row.appendChild(lbl);
+    blockAreasFinal.forEach(a => row.appendChild(makeAreaChip(a, a)));
+    chipsWrap.appendChild(row);
+  }
+
+  // Any leftover areas not in a known block (e.g. from Learning Matrix "Rostered Service Areas")
+  const knownJobsUpper = new Set(DEPARTMENT_GROUPS.blocks.flatMap(b => b.jobTitles.map(j => j.toUpperCase())));
+  const unclassified = plan.rosterAreas.filter(a => !knownJobsUpper.has(a.toUpperCase()));
+  if (unclassified.length) {
+    const row = document.createElement("div");
+    row.className = "area-group";
+    const lbl = document.createElement("span");
+    lbl.className = "area-group-label";
+    lbl.textContent = "Other Areas";
+    row.appendChild(lbl);
+    unclassified.forEach(a => row.appendChild(makeAreaChip(a, a)));
+    chipsWrap.appendChild(row);
+  }
+
+  // ── Pre-compute filtered sets (used by both compliance summary and tables below) ──
+  const filteredSessions = plan.sessions.filter(s =>
+    (activeDeptFilter === "ALL" || s.dept === activeDeptFilter) &&
+    (activeDayFilter === "ALL" || s.date === activeDayFilter) &&
+    matchesAreaFilter(s)
+  );
+
+  // ── Build filtered compliance stats ──
+  const _fReq = plan.required.filter(r =>
+    (activeDeptFilter === "ALL" || r.dept === activeDeptFilter) &&
+    matchesAreaFilter(r)
+  );
+  // Per-course tallies
+  const _courseMap = new Map();
+  const _deptMap = new Map();
+  const _peopleSet = new Set();
+  for (const r of _fReq) {
+    const pKey = r.name + "|" + r.dept;
+    let deptEntry = _deptMap.get(r.dept);
+    if (!deptEntry) { deptEntry = { dept: r.dept, people: new Set(), assigned: 0, completed: 0, booked: 0 }; _deptMap.set(r.dept, deptEntry); }
+    if (!_peopleSet.has(pKey)) { _peopleSet.add(pKey); deptEntry.people.add(pKey); }
+    // Use allCourses (all courses inc. completed) for assigned/completed counts;
+    // fall back to needs if allCourses not present (e.g. "Not in Matrix" entries)
+    const coursesForCompliance = coursesInFilter(r, r.allCourses && r.allCourses.length ? r.allCourses : (r.needs || []));
+    for (const c of coursesForCompliance) {
+      const courseName = c.course || c.name; // allCourses uses .name, needs uses .course
+      const courseStatus = c.status;
+      const isCompleted = courseStatus === "Completed";
+      const row = _courseMap.get(courseName) || { course: courseName, assigned: 0, completed: 0, booked: 0 };
+      row.assigned++;
+      if (isCompleted) { row.completed++; deptEntry.completed++; }
+      // Count booked sessions for projected (only for non-completed courses)
+      if (!isCompleted) {
+        const bookedForThis = filteredSessions.filter(s => s.name === r.name && s.dept === r.dept && s.course === courseName).length;
+        row.booked += Math.min(1, bookedForThis);
+        deptEntry.booked += Math.min(1, bookedForThis);
+      }
+      deptEntry.assigned++;
+      _courseMap.set(courseName, row);
+    }
+  }
+  const _pct = (a, b) => b ? Math.round(1000 * a / b) / 10 : 0;
+  const _courseRows = [..._courseMap.values()].sort((a,b) => a.course.localeCompare(b.course)).map(r => ({
+    ...r, outstanding: r.assigned - r.completed,
+    percent: _pct(r.completed, r.assigned),
+    projectedPercent: _pct(r.completed + r.booked, r.assigned)
+  }));
+  const _totAssigned = _courseRows.reduce((t,r) => t + r.assigned, 0);
+  const _totCompleted = _courseRows.reduce((t,r) => t + r.completed, 0);
+  const _totBooked = _courseRows.reduce((t,r) => t + r.booked, 0);
+  const _deptRows = [..._deptMap.values()].map(d => ({
+    dept: d.dept, people: d.people.size, assigned: d.assigned, completed: d.completed,
+    outstanding: d.assigned - d.completed, booked: d.booked,
+    percent: _pct(d.completed, d.assigned),
+    projectedPercent: _pct(d.completed + d.booked, d.assigned)
+  })).sort((a,b) => a.dept.localeCompare(b.dept));
+
+  const pctColor = p => p >= target ? "#065f46" : p >= target*0.75 ? "#92400e" : "#991b1b";
+  const isFiltered = activeDeptFilter !== "ALL" || activeAreaFilter.size > 0 || activeDayFilter !== "ALL";
+  el("bodyCompliance").innerHTML = `
+    <div class="compliance-boxes">
+      <div class="c-box c-box-current">
+        <div class="c-label">Current Compliance${isFiltered ? ' <span style="font-size:11px;font-weight:400;color:#6b7280">(filtered)</span>' : ''}</div>
+        <div class="c-value" style="color:${pctColor(_pct(_totCompleted, _totAssigned))}">${_pct(_totCompleted, _totAssigned).toFixed(1)}%</div>
+        <div class="c-sub">${_totCompleted} / ${_totAssigned} courses completed</div>
+      </div>
+      <div class="c-box c-box-target">
+        <div class="c-label">Target</div>
+        <div class="c-value"><input type="number" id="targetInput" value="${Math.round(target)}" min="1" max="100">%</div>
+        <div class="c-sub">Edit to update colours</div>
+      </div>
+      <div class="c-box c-box-projected">
+        <div class="c-label">Projected After Training</div>
+        <div class="c-value">${_pct(_totCompleted + _totBooked, _totAssigned).toFixed(1)}%</div>
+        <div class="c-sub">${_totAssigned - _totCompleted} outstanding</div>
+      </div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Course</th><th class="number">Assigned</th><th class="number">Completed</th><th class="number">Outstanding</th><th style="min-width:140px">Current</th><th style="min-width:140px">Projected</th></tr></thead>
+      <tbody>${_courseRows.map(r => `<tr>
+        <td>${esc(r.course)}</td>
+        <td class="number">${r.assigned}</td>
+        <td class="number">${r.completed}</td>
+        <td class="number">${r.outstanding}</td>
+        <td>${pbarHtml(r.percent, target)}</td>
+        <td>${pbarHtml(r.projectedPercent, target)}</td>
+      </tr>`).join("")}</tbody>
+    </table>`;
+
+  // Wire target input
+  const tInput = el("targetInput");
+  if (tInput) tInput.addEventListener("change", () => {
+    const v = Number(tInput.value);
+    if (v > 0 && v <= 100) { settings.complianceTargetPercent = v; saveSettings(); plan.complianceSummary.target = v; renderDashboard(plan); }
+  });
+
+  // ── Department Breakdown ──
+  el("bodyDeptBreakdown").innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Department</th><th class="number">People</th><th class="number">Assigned</th><th class="number">Completed</th><th class="number">Outstanding</th><th style="min-width:140px">Current</th><th style="min-width:140px">Projected</th></tr></thead>
+      <tbody>${_deptRows.map(r => `<tr>
+        <td><strong>${esc(r.dept)}</strong></td>
+        <td class="number">${r.people}</td>
+        <td class="number">${r.assigned}</td>
+        <td class="number">${r.completed}</td>
+        <td class="number">${r.outstanding}</td>
+        <td>${pbarHtml(r.percent, target)}</td>
+        <td>${pbarHtml(r.projectedPercent, target)}</td>
+      </tr>`).join("")}</tbody>
+    </table>`;
+
+  // ── Training Plan by Day ──
+  if (!filteredSessions.length) {
+    el("bodyPlanByDay").innerHTML = '<p class="no-data">No sessions match the current filters.</p>';
+  } else {
+    const byDate = new Map();
+    filteredSessions.forEach(s => {
+      if (!byDate.has(s.date)) byDate.set(s.date, []);
+      byDate.get(s.date).push(s);
+    });
+    let html = "";
+    for (const [date, sessions] of byDate) {
+      html += `<h3 style="margin:16px 0 8px;font-size:14px;color:#0d5257;">${formatDate(date)}</h3>
+      <table class="data-table" style="margin-bottom:12px;">
+        <thead><tr><th>Time</th><th>Name</th><th>Department</th><th>Primary Role / Areas</th><th>Course</th><th>Status</th><th>Shift</th></tr></thead>
+        <tbody>${sessions.map(s => {
+          const areaText = [s.primaryJob, ...(s.workedAreas||[]), ...(s.areas||[])].filter(Boolean).join(", ");
+          return `<tr>
+          <td style="white-space:nowrap">${esc(s.start)} – ${esc(s.end)}</td>
+          <td>${esc(s.name)}</td>
+          <td>${esc(s.dept)}</td>
+          <td style="font-size:12px;color:#555">${esc(areaText)}</td>
+          <td>${esc(s.course)}</td>
+          <td>${statusBadge(s.status)}</td>
+          <td style="white-space:nowrap;color:#888">${esc(s.shift)}</td>
+        </tr>`;}).join("")}</tbody>
+      </table>`;
+    }
+    el("bodyPlanByDay").innerHTML = html;
+  }
+
+  // ── Training Required ──
+  const filteredRequired = _fReq.filter(r => r.needs && r.needs.length > 0); // only show people with outstanding needs
+  if (!filteredRequired.length) {
+    el("bodyRequired").innerHTML = '<p class="no-data">No training required (or none match the current filters).</p>';
+  } else {
+    el("bodyRequired").innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Department</th><th>Primary Role / Areas</th><th>Course</th><th>Status</th><th>Rostered</th></tr></thead>
+        <tbody>${filteredRequired.flatMap(r => {
+          const areaText = [r.primaryJob, ...(r.workedAreas||[]), ...(r.areas||[])].filter(Boolean).join(", ") || r.position;
+          return r.needs.map((n,i) => `<tr>
+          ${i===0 ? `<td rowspan="${r.needs.length}">${esc(r.name)}</td><td rowspan="${r.needs.length}">${esc(r.dept)}</td><td rowspan="${r.needs.length}" style="color:#555;font-size:12px">${esc(areaText)}</td>` : ""}
+          <td>${esc(n.course)}</td>
+          <td>${statusBadge(n.status)}</td>
+          ${i===0 ? `<td rowspan="${r.needs.length}">${r.rostered ? "✅ Yes" : "❌ No"}</td>` : ""}
+        </tr>`);}).join("")}</tbody>
+      </table>`;
+  }
+
+  // ── Needs Attention ──
+  const items = [];
+  if (plan.unknownStatuses.length) items.push({ cls:"warn", html:`<strong>${plan.unknownStatuses.length} unknown status(es):</strong><br>${plan.unknownStatuses.slice(0,5).map(s => esc(s)).join("<br>")}${plan.unknownStatuses.length > 5 ? "<br>…and more" : ""}` });
+  if (plan.unscheduled.length) items.push({ cls:"warn", html:`<strong>${plan.unscheduled.length} training session(s) could not be scheduled.</strong> People may have conflicting shifts or insufficient time. Check the department filter for details.` });
+  if (plan.notRostered.length) items.push({ cls:"info", html:`<strong>${plan.notRostered.length} person/people</strong> need training but are not rostered this week: ${plan.notRostered.slice(0,5).map(r => esc(r.name)).join(", ")}${plan.notRostered.length > 5 ? " …and more" : ""}` });
+  if (plan.schedulePeopleWithoutMatrix.length) items.push({ cls:"info", html:`<strong>${plan.schedulePeopleWithoutMatrix.length} rostered person/people</strong> not found in the Learning Matrix: ${plan.schedulePeopleWithoutMatrix.slice(0,5).map(esc).join(", ")}${plan.schedulePeopleWithoutMatrix.length > 5 ? " …and more" : ""}` });
+  if (!items.length) items.push({ cls:"info", html:"No issues to report." });
+  el("bodyAttention").innerHTML = items.map(i => `<div class="attention-item ${i.cls}">${i.html}</div>`).join("");
+
+  // Apply section visibility
+  applyViewToggles();
+}
+
+// ══════════════════════════════════════════════════
+// SECTION COLLAPSE
+// ══════════════════════════════════════════════════
+function applyViewToggles() {
+  const map = {
+    toggleCompliance: "cardCompliance",
+    toggleDeptBreakdown: "cardDeptBreakdown",
+    togglePlanByDay: "cardPlanByDay",
+    toggleRequired: "cardRequired",
+    toggleAttention: "cardAttention"
+  };
+  for (const [cbId, cardId] of Object.entries(map)) {
+    const cb = el(cbId);
+    if (cb) el(cardId).style.display = cb.checked ? "" : "none";
+  }
+}
+
+// ══════════════════════════════════════════════════
+// MAIN GENERATE FLOW
+// ══════════════════════════════════════════════════
+let schedDropZone, matrixDropZone;
+
+async function readFileBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.onerror = () => reject(new Error("Failed to read file: " + file.name));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+let _parsedWeeks = []; // cache for multi-week schedule
+let _selectedWeekIndex = 0;
+
+async function generate() {
+  hideError();
+  const schedFiles = schedDropZone.getFiles();
+  const mxFiles = matrixDropZone.getFiles();
+
+  if (!schedFiles.length) { showError("Please select a Weekly Employee Schedule file."); return; }
+  if (!mxFiles.length) { showError("Please select at least one Learning Matrix file."); return; }
+
+  showLoading("Reading schedule…");
+  await new Promise(r => setTimeout(r, 0)); // let UI update
+
+  try {
+    const schedBuf = await readFileBuffer(schedFiles[0]);
+    el("loadingMsg").textContent = "Parsing schedule…";
+    await new Promise(r => setTimeout(r, 0));
+
+    _parsedWeeks = parseWeeklyScheduleAllWeeks(schedBuf);
+    if (!_parsedWeeks.length) throw new Error("Could not parse the Weekly Employee Schedule. Check the file format.");
+
+    // If multiple weeks, pick the one closest to today (but not in the past if possible)
+    if (_parsedWeeks.length > 1) {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      let bestIdx = 0;
+      for (let i = 0; i < _parsedWeeks.length; i++) {
+        if (_parsedWeeks[i].weekStartIso >= todayIso) { bestIdx = i; break; }
+        bestIdx = i; // fall back to last past week if all are past
+      }
+      _selectedWeekIndex = bestIdx;
+    } else {
+      _selectedWeekIndex = 0;
+    }
+
+    const schedule = _parsedWeeks[_selectedWeekIndex];
+    if (!schedule.weekStartIso) throw new Error("Could not parse the Weekly Employee Schedule. Check the file format.");
+
+    el("loadingMsg").textContent = "Reading learning matrix…";
+    await new Promise(r => setTimeout(r, 0));
+
+    let allRecords = [];
+    for (const f of mxFiles) {
+      const buf = await readFileBuffer(f);
+      el("loadingMsg").textContent = `Parsing ${f.name}…`;
+      await new Promise(r => setTimeout(r, 0));
+      const { records } = parseLearningMatrix(buf, f.name);
+      allRecords.push(...records);
+    }
+
+    el("loadingMsg").textContent = "Merging records…";
+    await new Promise(r => setTimeout(r, 0));
+    const matrixRecords = mergeRecords(allRecords);
+
+    // Auto-detect required courses per area from the matrix + schedule data.
+    // For each person rostered this week, find their matrix record and collect every
+    // course assigned to them. Group by schedule job title (the area chip value).
+    // The union of all courses seen for people in each area becomes the required set —
+    // so anyone in that area who is NOT enrolled in a course that others have gets it
+    // injected as "Not Started" and scheduled for training.
+    // Always re-detect on a fresh upload so stale rules don't carry over.
+    {
+      const idx = indexSchedule(schedule.allWeeksPeople || schedule.people);
+      const detectedRules = {}; // area -> Set of course names
+      for (const rec of matrixRecords) {
+        const sp = matchPerson(rec.name, idx);
+        if (!sp) continue;
+        const area = sp.job ? sp.job.toUpperCase() : null;
+        if (!area) continue;
+        for (const c of (rec.courses || [])) {
+          // Only add course to this area's required set if someone actually has
+          // a real status for it (Completed / In Progress / Not Started).
+          // Blank status means the course isn't relevant to this area.
+          if (!c.name) continue;
+          const st = (c.status || "").trim();
+          if (!st) continue; // blank = not assigned to this area
+          if (!detectedRules[area]) detectedRules[area] = new Set();
+          detectedRules[area].add(c.name);
+        }
+      }
+      // Convert Sets to arrays and merge with any manually-added rules the user saved
+      const existing = settings.requiredCoursesByArea || {};
+      const merged = {};
+      const allAreas = new Set([...Object.keys(detectedRules), ...Object.keys(existing)]);
+      for (const area of allAreas) {
+        const auto = detectedRules[area] ? [...detectedRules[area]] : [];
+        const manual = existing[area] || [];
+        // Union: include everything from both auto-detect and manual rules
+        merged[area] = [...new Set([...auto, ...manual])].sort();
+      }
+      settings.requiredCoursesByArea = merged;
+      saveSettings();
+    }
+
+    // Store parsed data so the >1yr toggle can re-plan without re-uploading
+    lastParsedSchedule = schedule;
+    lastParsedMatrixRecords = matrixRecords;
+
+    el("loadingMsg").textContent = "Building training plan…";
+    await new Promise(r => setTimeout(r, 0));
+    const planSettings = { ...settings, includeOldCompletions };
+    const plan = buildTrainingPlan({ matrixRecords, schedule, departmentGroups: DEPARTMENT_GROUPS, settings: planSettings });
+
+    hideLoading();
+    el("uploadPage").style.display = "none";
+    el("dashPage").style.display = "block";
+    renderDashboard(plan);
+  } catch(err) {
+    hideLoading();
+    showError("Error: " + err.message);
+    console.error(err);
+  }
+}
+
+// Switch to a different week in a multi-week schedule file
+function changeWeek(delta) {
+  const newIdx = _selectedWeekIndex + delta;
+  if (newIdx < 0 || newIdx >= _parsedWeeks.length) return;
+  _selectedWeekIndex = newIdx;
+  lastParsedSchedule = _parsedWeeks[_selectedWeekIndex];
+  rebuildPlan();
+}
+
+// Re-runs the scheduling engine with the current toggle state (no file re-read needed)
+function rebuildPlan() {
+  if (!lastParsedSchedule || !lastParsedMatrixRecords) return;
+  const planSettings = { ...settings, includeOldCompletions };
+  const plan = buildTrainingPlan({ matrixRecords: lastParsedMatrixRecords, schedule: lastParsedSchedule, departmentGroups: DEPARTMENT_GROUPS, settings: planSettings });
+  renderDashboard(plan);
+}
+
+function updateGenBtn() {
+  const hasSchedule = schedDropZone && schedDropZone.getFiles().length > 0;
+  const hasMatrix = matrixDropZone && matrixDropZone.getFiles().length > 0;
+  el("generateBtn").disabled = !(hasSchedule && hasMatrix);
+}
+
+// ══════════════════════════════════════════════════
+// SETTINGS MODAL
+// ══════════════════════════════════════════════════
+
+// Build one row in the Required Courses editor
+function addAreaRuleRow(area, courses) {
+  const wrap = el("reqCoursesEditor");
+  const row = document.createElement("div");
+  row.className = "area-rule";
+  row.innerHTML = `
+    <div class="area-rule-fields">
+      <input type="text" class="rule-area" placeholder="Area name e.g. TOOLSHOP" value="${esc(area || "")}">
+      <input type="text" class="rule-courses" placeholder="Required courses (comma-separated)" value="${esc((courses || []).join(", "))}">
+      <span class="area-rule-hint">Area must match the rostered job title exactly (case-insensitive). Separate multiple courses with commas.</span>
+    </div>
+    <button class="area-rule-remove" title="Remove">✕</button>`;
+  row.querySelector(".area-rule-remove").addEventListener("click", () => row.remove());
+  wrap.appendChild(row);
+}
+
+// Read the editor back into an object { AREA: [course1, course2, ...] }
+function readAreaRules() {
+  const result = {};
+  el("reqCoursesEditor").querySelectorAll(".area-rule").forEach(row => {
+    const area = row.querySelector(".rule-area").value.trim().toUpperCase();
+    const courses = row.querySelector(".rule-courses").value.split(",").map(s => s.trim()).filter(Boolean);
+    if (area && courses.length) result[area] = courses;
+  });
+  return result;
+}
+
+function openSettings() {
+  el("sComplianceTarget").value = settings.complianceTargetPercent;
+  el("sShiftBuffer").value = settings.shiftBufferMinutes;
+  el("sMaxPerDay").value = settings.maxMinutesPerPersonPerDay;
+  el("sMaxConcurrent").value = settings.maxConcurrentPerDepartment;
+  el("sExpiringSoon").value = settings.expiringSoonDays;
+
+  // Populate required courses editor
+  el("reqCoursesEditor").innerHTML = "";
+  const rcba = settings.requiredCoursesByArea || {};
+  for (const [area, courses] of Object.entries(rcba)) addAreaRuleRow(area, courses);
+  if (!Object.keys(rcba).length) addAreaRuleRow("", []); // start with one empty row
+
+  el("settingsModal").classList.add("open");
+}
+
+function closeSettings() { el("settingsModal").classList.remove("open"); }
+
+function saveAndRegenerate() {
+  settings.complianceTargetPercent = Number(el("sComplianceTarget").value) || 90;
+  settings.shiftBufferMinutes = Number(el("sShiftBuffer").value) || 30;
+  settings.maxMinutesPerPersonPerDay = Number(el("sMaxPerDay").value) || 90;
+  settings.maxConcurrentPerDepartment = Number(el("sMaxConcurrent").value) || 4;
+  settings.expiringSoonDays = Number(el("sExpiringSoon").value) || 30;
+  settings.requiredCoursesByArea = readAreaRules();
+  saveSettings();
+  closeSettings();
+  if (lastParsedSchedule && lastParsedMatrixRecords) {
+    // Full re-plan so injected required courses take effect
+    rebuildPlan();
+  } else if (currentPlan) {
+    renderDashboard(currentPlan);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+  schedDropZone = setupDropZone("schedDrop", "schedFile", "schedFileList", false);
+  matrixDropZone = setupDropZone("matrixDrop", "matrixFiles", "matrixFileList", true);
+
+  el("generateBtn").addEventListener("click", generate);
+
+  el("settingsBtn").addEventListener("click", openSettings);
+  el("settingsCancelBtn").addEventListener("click", closeSettings);
+  el("settingsSaveBtn").addEventListener("click", saveAndRegenerate);
+  el("settingsModal").addEventListener("click", e => { if (e.target === el("settingsModal")) closeSettings(); });
+  el("addAreaRuleBtn").addEventListener("click", () => addAreaRuleRow("", []));
+
+  el("newUploadBtn").addEventListener("click", () => {
+    el("dashPage").style.display = "none";
+    el("uploadPage").style.display = "";
+  });
+
+  el("printBtn").addEventListener("click", () => window.print());
+
+  // Section collapse toggles
+  document.querySelectorAll(".section-toggle").forEach(btn => {
+    const targetId = btn.dataset.target;
+    const body = el(targetId);
+    if (hiddenSections.has(targetId)) { body.classList.add("collapsed"); btn.textContent = "▸"; }
+    btn.addEventListener("click", () => {
+      body.classList.toggle("collapsed");
+      const collapsed = body.classList.contains("collapsed");
+      btn.textContent = collapsed ? "▸" : "▾";
+      if (collapsed) hiddenSections.add(targetId); else hiddenSections.delete(targetId);
+      saveHiddenSections();
+    });
+  });
+
+  // View toggle checkboxes
+  ["toggleCompliance","toggleDeptBreakdown","togglePlanByDay","toggleRequired","toggleAttention"].forEach(id => {
+    el(id).addEventListener("change", applyViewToggles);
+  });
+
+  // >1yr completions toggle — re-runs the full plan engine
+  el("toggleOldCompletions").addEventListener("change", e => {
+    includeOldCompletions = e.target.checked;
+    rebuildPlan();
+  });
+});
+</script>
+</body>
+</html>
