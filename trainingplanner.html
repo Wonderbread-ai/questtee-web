@@ -354,6 +354,14 @@ try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.cla
       </div>
     </div>
 
+    <!-- Course filter -->
+    <div id="courseFilterBar" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:nowrap;">
+        <span class="filter-label" style="padding-top:5px;white-space:nowrap;">COURSE:</span>
+        <div id="courseChipsWrap" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;"></div>
+      </div>
+    </div>
+
     <!-- Compliance Summary -->
     <div class="section-card" id="cardCompliance">
       <div class="section-header">
@@ -441,6 +449,8 @@ let settings = loadSettings();
 let activeDeptFilter = "ALL";
 let activeDayFilter = "ALL";
 let activeAreaFilter = new Set(); // empty = All
+let activeCourseFilter = new Set(); // empty = All courses in the report
+const courseOk = (name) => !activeCourseFilter.size || activeCourseFilter.has(name);
 let includeOldCompletions = false;
 const hiddenSections = loadHiddenSections();
 
@@ -1257,11 +1267,38 @@ function renderDashboard(plan) {
     chipsWrap.appendChild(row);
   }
 
+  // ── Course chips (every course in the report/data) ──
+  const NOT_IN_MATRIX = "⚠ Not in Learning Matrix";
+  const allCourseNames = [...new Set(plan.required.flatMap(r =>
+    [...(r.allCourses || []).map(c => c.name), ...(r.needs || []).map(n => n.course)]
+  ).filter(n => n && n !== NOT_IN_MATRIX))].sort((a, b) => a.localeCompare(b));
+  // Drop any selected course that isn't in the current data (e.g. after loading new files)
+  [...activeCourseFilter].forEach(c => { if (!allCourseNames.includes(c)) activeCourseFilter.delete(c); });
+  const courseWrap = el("courseChipsWrap");
+  courseWrap.innerHTML = "";
+  const makeCourseChip = (value, label) => {
+    const c = document.createElement("span");
+    const isAll = value === "ALL";
+    c.className = "chip" + (isAll ? " all-chip" : "") + ((isAll ? !activeCourseFilter.size : activeCourseFilter.has(value)) ? " active" : "");
+    c.textContent = label;
+    c.addEventListener("click", () => {
+      if (isAll) activeCourseFilter.clear();
+      else if (activeCourseFilter.has(value)) activeCourseFilter.delete(value);
+      else activeCourseFilter.add(value);
+      if (activeCourseFilter.size === allCourseNames.length) activeCourseFilter.clear(); // every course picked = All
+      renderDashboard(currentPlan);
+    });
+    return c;
+  };
+  courseWrap.appendChild(makeCourseChip("ALL", "All courses"));
+  allCourseNames.forEach(n => courseWrap.appendChild(makeCourseChip(n, n)));
+
   // ── Pre-compute filtered sets (used by both compliance summary and tables below) ──
   const filteredSessions = plan.sessions.filter(s =>
     (activeDeptFilter === "ALL" || s.dept === activeDeptFilter) &&
     (activeDayFilter === "ALL" || s.date === activeDayFilter) &&
-    matchesAreaFilter(s)
+    matchesAreaFilter(s) &&
+    courseOk(s.course)
   );
 
   // ── Build filtered compliance stats ──
@@ -1277,10 +1314,12 @@ function renderDashboard(plan) {
     const pKey = r.name + "|" + r.dept;
     let deptEntry = _deptMap.get(r.dept);
     if (!deptEntry) { deptEntry = { dept: r.dept, people: new Set(), assigned: 0, completed: 0, booked: 0 }; _deptMap.set(r.dept, deptEntry); }
-    if (!_peopleSet.has(pKey)) { _peopleSet.add(pKey); deptEntry.people.add(pKey); }
     // Use allCourses (all courses inc. completed) for assigned/completed counts;
     // fall back to needs if allCourses not present (e.g. "Not in Matrix" entries)
-    const coursesForCompliance = coursesInFilter(r, r.allCourses && r.allCourses.length ? r.allCourses : (r.needs || []));
+    const coursesForCompliance = coursesInFilter(r, r.allCourses && r.allCourses.length ? r.allCourses : (r.needs || []))
+      .filter(c => courseOk(c.course || c.name));
+    // Count the person only if they have at least one course in the current course selection
+    if ((!activeCourseFilter.size || coursesForCompliance.length) && !_peopleSet.has(pKey)) { _peopleSet.add(pKey); deptEntry.people.add(pKey); }
     for (const c of coursesForCompliance) {
       const courseName = c.course || c.name; // allCourses uses .name, needs uses .course
       const courseStatus = c.status;
@@ -1307,7 +1346,7 @@ function renderDashboard(plan) {
   const _totAssigned = _courseRows.reduce((t,r) => t + r.assigned, 0);
   const _totCompleted = _courseRows.reduce((t,r) => t + r.completed, 0);
   const _totBooked = _courseRows.reduce((t,r) => t + r.booked, 0);
-  const _deptRows = [..._deptMap.values()].map(d => ({
+  const _deptRows = [..._deptMap.values()].filter(d => !activeCourseFilter.size || d.assigned > 0).map(d => ({
     dept: d.dept, people: d.people.size, assigned: d.assigned, completed: d.completed,
     outstanding: d.assigned - d.completed, booked: d.booked,
     percent: _pct(d.completed, d.assigned),
@@ -1315,7 +1354,7 @@ function renderDashboard(plan) {
   })).sort((a,b) => a.dept.localeCompare(b.dept));
 
   const pctColor = p => p >= target ? "#065f46" : p >= target*0.75 ? "#92400e" : "#991b1b";
-  const isFiltered = activeDeptFilter !== "ALL" || activeAreaFilter.size > 0 || activeDayFilter !== "ALL";
+  const isFiltered = activeDeptFilter !== "ALL" || activeAreaFilter.size > 0 || activeDayFilter !== "ALL" || activeCourseFilter.size > 0;
   el("bodyCompliance").innerHTML = `
     <div class="compliance-boxes">
       <div class="c-box c-box-current">
@@ -1399,7 +1438,10 @@ function renderDashboard(plan) {
   }
 
   // ── Training Required ──
-  const filteredRequired = _fReq.filter(r => r.needs && r.needs.length > 0); // only show people with outstanding needs
+  // Only show people with outstanding needs in the selected course(s)
+  const filteredRequired = _fReq
+    .map(r => ({ ...r, needs: (r.needs || []).filter(n => courseOk(n.course)) }))
+    .filter(r => r.needs.length > 0);
   if (!filteredRequired.length) {
     el("bodyRequired").innerHTML = '<p class="no-data">No training required (or none match the current filters).</p>';
   } else {
