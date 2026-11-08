@@ -33,6 +33,10 @@
   ],
   "rewrites": [
     {
+      "source": "/trainingplanner",
+      "destination": "/trainingplanner.html"
+    },
+    {
       "source": "/daysheet",
       "destination": "https://cosmos-mac-mini.tail8a72d3.ts.net/daysheet/"
     },
