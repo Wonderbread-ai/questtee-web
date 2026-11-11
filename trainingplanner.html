@@ -363,10 +363,14 @@ try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.cla
     <!-- Old completions toggle -->
     <div class="filter-bar" id="oldCompletionsBar">
       <span class="filter-label">Include:</span>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:#444;cursor:pointer;">
-        <input type="checkbox" id="toggleOldCompletions" style="accent-color:#7c3aed;width:15px;height:15px;">
-        Completed &gt;1 year ago <span style="display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:600;">re-train</span>
-      </label>
+      <span style="font-size:13px;font-weight:500;color:#444;">Courses completed</span>
+      <span id="oldCompletionChips" style="display:flex;flex-wrap:wrap;gap:6px;">
+        <span class="chip" data-years="0">Off</span>
+        <span class="chip" data-years="1">Over 1 year ago</span>
+        <span class="chip" data-years="2">Over 2 years ago</span>
+        <span class="chip" data-years="3">Over 3 years ago</span>
+      </span>
+      <span style="display:inline-block;padding:1px 7px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:600;">re-train</span>
     </div>
 
     <!-- Rostered Areas filter -->
@@ -475,7 +479,8 @@ let activeDayFilter = "ALL";
 let activeAreaFilter = new Set(); // empty = All
 let activeCourseFilter = new Set(); // empty = All courses in the report
 const courseOk = (name) => !activeCourseFilter.size || activeCourseFilter.has(name);
-let includeOldCompletions = false;
+let includeOldCompletions = 0; // 0 = off, or 1 / 2 / 3 years
+const oldCompletionStatus = y => y === 1 ? "Completed (>1yr)" : `Completed (>${y}yrs)`;
 // Required-course rules are rebuilt from the loaded files on every upload.
 let lastAutoRules = {};          // detected from the current files
 let lastDataCourses = new Set(); // every course that appears in the current matrix file(s)
@@ -735,7 +740,7 @@ function parseLearningMatrix(buffer, fileName) {
   return { records, sheetsRead, sheetsSkipped };
 }
 
-const STATUS_RANK = { Expired: 3, "Not Started": 3, "In Progress": 2, "Completed (>1yr)": 1, Completed: 1 };
+const STATUS_RANK = { Expired: 3, "Not Started": 3, "In Progress": 2, "Completed (>1yr)": 1, "Completed (>2yrs)": 1, "Completed (>3yrs)": 1, Completed: 1 };
 
 function mergeRecords(allRecords) {
   const people = new Map();
@@ -779,7 +784,7 @@ function findBlock(rawValue, department, blocks) {
 // ══════════════════════════════════════════════════
 // TRAINING PLANNER ENGINE (port of trainingPlanner.js)
 // ══════════════════════════════════════════════════
-const STATUS_ORDER = { Expired: 0, "Not Started": 1, "In Progress": 2, "Expiring soon": 3, "Completed (>1yr)": 4 };
+const STATUS_ORDER = { Expired: 0, "Not Started": 1, "In Progress": 2, "Expiring soon": 3, "Completed (>1yr)": 4, "Completed (>2yrs)": 4, "Completed (>3yrs)": 4 };
 const toMin = hhmm => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 const fmt = min => `${String(Math.floor(min / 60)).padStart(2,"0")}:${String(min % 60).padStart(2,"0")}`;
 
@@ -810,6 +815,7 @@ function courseSetting(s, name) { return (s.courses||[]).find(c => c.name === na
 function computeNeeds(record, s, weekStartIso) {
   const needs = [], unknownStatuses = [];
   const horizon = addDaysIso(weekStartIso, s.expiringSoonDays || 0);
+  const oldYears = Number(s.includeOldCompletions) || 0; // 0 = off, 1/2/3 = re-train if completed that many years ago
   for (const c of record.courses) {
     const cfg = courseSetting(s, c.name);
     let status = null, expiresOn = null;
@@ -818,8 +824,8 @@ function computeNeeds(record, s, weekStartIso) {
     else if (c.status === "Completed") {
       if (expiresOn && expiresOn <= horizon) {
         status = "Expiring soon";
-      } else if (s.includeOldCompletions && c.completedOn && c.completedOn < addDaysIso(weekStartIso, -365)) {
-        status = "Completed (>1yr)";
+      } else if (oldYears && c.completedOn && c.completedOn < addMonthsIso(weekStartIso, -12 * oldYears)) {
+        status = oldCompletionStatus(oldYears);
       }
     } else unknownStatuses.push(`${c.name}: "${c.status || "blank"}"`);
     if (status) needs.push({ course: c.name, status, completedOn: c.completedOn, expiresOn, minutes: Number(cfg.minutes) || 30 });
@@ -1090,7 +1096,7 @@ function pbarHtml(pct, target) {
 }
 
 function statusBadge(status) {
-  const map = { "Completed":"badge-completed","Expired":"badge-expired","Not Started":"badge-not-started","In Progress":"badge-in-progress","Expiring soon":"badge-expiring","Completed (>1yr)":"badge-old","Not in Matrix":"badge-no-matrix" };
+  const map = { "Completed":"badge-completed","Expired":"badge-expired","Not Started":"badge-not-started","In Progress":"badge-in-progress","Expiring soon":"badge-expiring","Completed (>1yr)":"badge-old","Completed (>2yrs)":"badge-old","Completed (>3yrs)":"badge-old","Not in Matrix":"badge-no-matrix" };
   return `<span class="badge ${map[status]||""}">${esc(status)}</span>`;
 }
 
@@ -1169,7 +1175,7 @@ function renderDashboard(plan) {
   const target = plan.complianceSummary.target;
 
   // Sync toggle states that survive re-renders
-  el("toggleOldCompletions").checked = includeOldCompletions;
+  document.querySelectorAll("#oldCompletionChips .chip").forEach(c => c.classList.toggle("active", Number(c.dataset.years) === includeOldCompletions));
 
   // Week label — show navigation when schedule has multiple weeks
   if (_parsedWeeks.length > 1) {
@@ -1681,6 +1687,7 @@ function fillPrintFilters() {
   parts.push("Day: " + (activeDayFilter === "ALL" ? "All" : activeDayFilter));
   parts.push("Areas: " + (activeAreaFilter.size ? [...activeAreaFilter].join(", ") : "All"));
   parts.push("Courses: " + (activeCourseFilter.size ? [...activeCourseFilter].join(", ") : "All courses"));
+  if (includeOldCompletions) parts.push(`Re-train: completed over ${includeOldCompletions} year${includeOldCompletions > 1 ? "s" : ""} ago`);
   el("printFilters").textContent = "Filters — " + parts.join("  ·  ");
 }
 
@@ -1804,11 +1811,11 @@ document.addEventListener("DOMContentLoaded", () => {
     el(id).addEventListener("change", applyViewToggles);
   });
 
-  // >1yr completions toggle — re-runs the full plan engine
-  el("toggleOldCompletions").addEventListener("change", e => {
-    includeOldCompletions = e.target.checked;
+  // Re-train old completions (off / >1 / >2 / >3 years) — re-runs the full plan engine
+  document.querySelectorAll("#oldCompletionChips .chip").forEach(c => c.addEventListener("click", () => {
+    includeOldCompletions = Number(c.dataset.years) || 0;
     rebuildPlan();
-  });
+  }));
 });
 </script>
 </body>
