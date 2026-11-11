@@ -35,11 +35,18 @@ button { cursor: pointer; }
 
 /* ── Dashboard toolbar ── */
 #dashPage { display: none; min-height: 100vh; }
-.toolbar { background: #0d5257; color: #fff; padding: 0 20px; display: flex; align-items: center; gap: 12px; height: 50px; position: sticky; top: 0; z-index: 100; }
+.toolbar { background: #0d5257; color: #fff; padding: 8px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 50px; position: sticky; top: 0; z-index: 100; }
 .toolbar h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: .03em; flex: 1; }
 .toolbar-btn { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: background .15s; }
 .toolbar-btn:hover { background: rgba(255,255,255,.22); }
 .toolbar-btn.icon-btn { padding: 6px 10px; font-size: 16px; }
+.toolbar-btn.print-btn { background: #fff; color: #0d5257; border-color: #fff; font-weight: 700; }
+.toolbar-btn.print-btn:hover { background: #e8f2f2; }
+@media (max-width: 600px) {
+  .toolbar { padding: 8px 12px; }
+  .toolbar h1 { flex-basis: 100%; }
+}
+#printFilters { display: none; }
 
 /* ── Main content ── */
 .dash-body { padding: 20px; max-width: 1200px; margin: 0 auto; }
@@ -120,7 +127,20 @@ button { cursor: pointer; }
 /* ── Print ── */
 @media print {
   body { background: #fff; font-size: 11px; }
-  .toolbar, .view-toggles, .filter-bar, .section-toggle, .toolbar-btn, #uploadPage { display: none !important; }
+  .toolbar, .view-toggles, .filter-bar, .section-toggle, .toolbar-btn, #uploadPage,
+  #areaFilterBar, #courseFilterBar, #weekLabel button { display: none !important; }
+  #printFilters { display: block !important; font-size: 11px; color: #333; margin: 0 0 12px; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } /* keep progress bars & colours */
+  .dash-body { padding: 0 !important; max-width: none !important; }
+  .section-body { overflow: visible !important; }
+  .data-table { width: 100% !important; table-layout: auto; }
+  .data-table th[style*="min-width"] { min-width: 70px !important; }
+  .data-table td:first-child { min-width: 110px; }
+  .data-table { font-size: 9.5px; }
+  .data-table th, .data-table td { padding: 4px 5px !important; }
+  .pbar-wrap { gap: 4px; }
+  .pbar { width: 40px !important; min-width: 40px !important; }
+  .section-body { padding-left: 8px !important; padding-right: 8px !important; }
   .section-card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; margin-bottom: 12px; }
   .section-body.collapsed { display: block !important; }
   .compliance-boxes { gap: 10px; }
@@ -311,11 +331,12 @@ try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.cla
     <h1>Training Planner</h1>
     <button class="toolbar-btn" id="settingsBtn">⚙ Settings</button>
     <button class="toolbar-btn" id="newUploadBtn">↩ New files</button>
-    <button class="toolbar-btn icon-btn" id="printBtn" title="Print">🖨</button>
+    <button class="toolbar-btn print-btn" id="printBtn" title="Print / Save as PDF">🖨 Print</button>
   </div>
 
   <div class="dash-body">
     <div class="week-label" id="weekLabel"></div>
+    <div id="printFilters"></div>
 
     <!-- Stats strip -->
     <div class="stats-strip" id="statsStrip"></div>
@@ -1653,6 +1674,16 @@ function rebuildPlan() {
   renderDashboard(plan);
 }
 
+// One line at the top of the printout saying which filters were applied
+function fillPrintFilters() {
+  const parts = [];
+  parts.push("Department: " + (activeDeptFilter === "ALL" ? "All" : activeDeptFilter));
+  parts.push("Day: " + (activeDayFilter === "ALL" ? "All" : activeDayFilter));
+  parts.push("Areas: " + (activeAreaFilter.size ? [...activeAreaFilter].join(", ") : "All"));
+  parts.push("Courses: " + (activeCourseFilter.size ? [...activeCourseFilter].join(", ") : "All courses"));
+  el("printFilters").textContent = "Filters — " + parts.join("  ·  ");
+}
+
 function updateGenBtn() {
   const hasSchedule = schedDropZone && schedDropZone.getFiles().length > 0;
   const hasMatrix = matrixDropZone && matrixDropZone.getFiles().length > 0;
@@ -1751,7 +1782,8 @@ document.addEventListener("DOMContentLoaded", () => {
     el("uploadPage").style.display = "";
   });
 
-  el("printBtn").addEventListener("click", () => window.print());
+  el("printBtn").addEventListener("click", () => { fillPrintFilters(); window.print(); });
+  window.addEventListener("beforeprint", fillPrintFilters); // also covers Cmd/Ctrl+P
 
   // Section collapse toggles
   document.querySelectorAll(".section-toggle").forEach(btn => {
