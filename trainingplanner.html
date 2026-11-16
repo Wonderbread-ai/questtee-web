@@ -271,6 +271,10 @@ try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.cla
     <div class="field-group"><label>Max training per person per day (minutes)</label><input type="number" id="sMaxPerDay" min="15"></div>
     <div class="field-group"><label>Max concurrent per department</label><input type="number" id="sMaxConcurrent" min="1"></div>
     <div class="field-group"><label>Expiring soon window (days)</label><input type="number" id="sExpiringSoon" min="0"></div>
+    <div class="field-group">
+      <label>Courses — minutes to book, and validity in months (blank = never expires)</label>
+      <div id="courseTimesEditor" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;"></div>
+    </div>
 
     <div class="field-group" style="flex-direction:column;align-items:flex-start;gap:8px;">
       <label style="font-weight:600">Required Courses by Area</label>
@@ -293,8 +297,11 @@ try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.cla
 <!-- ============================================================ UPLOAD PAGE -->
 <div id="uploadPage">
   <div class="upload-card">
-    <h1>Training Planner</h1>
-    <p class="subtitle">Upload a Weekly Employee Schedule and one or more Learning Matrix reports to generate the training plan.</p>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
+      <h1>Training Planner</h1>
+      <a href="#" id="uploadSettingsLink" style="font-size:13px;color:#0d5257;font-weight:600;text-decoration:none;">Training settings →</a>
+    </div>
+    <p class="subtitle">Upload the Weekly Employee Schedule, plus the Learning Matrix report(s) and/or the Commercial Best Experience Training report. Anyone with training not started, in progress or expired (or expiring soon) is booked into their own rostered shifts, with no two departments training at the same time.</p>
 
     <!-- Schedule file -->
     <div class="upload-section">
@@ -318,6 +325,22 @@ try { if (sessionStorage.getItem("tpAuth") === "1") document.documentElement.cla
         <input type="file" id="matrixFiles" accept=".xlsx,.xlsm" multiple>
       </div>
       <div class="file-list" id="matrixFileList"></div>
+    </div>
+
+    <!-- Commercial Best Experience Training CSV -->
+    <div class="upload-section">
+      <label>Commercial Best Experience Training (.csv)</label>
+      <div class="hint">As located at the ‘Instore Commercial’ SharePoint. Multi-store report with “Completed / Not Completed” columns — pick the store to plan; only that store’s team members are used. Use it with or instead of the Learning Matrix.</div>
+      <div class="drop-zone" id="storeDrop">
+        <span class="dz-icon">🏬</span>
+        <span>Drop the CSV here or <strong>click to browse</strong></span>
+        <input type="file" id="storeFile" accept=".csv,text/csv">
+      </div>
+      <div class="file-list" id="storeFileList"></div>
+      <div id="storePickWrap" style="display:none;margin-top:10px;align-items:center;gap:8px;">
+        <label for="storeCode" style="display:inline;margin:0;font-size:13px;">Store</label>
+        <select id="storeCode" style="padding:6px 8px;border:1.5px solid #d0d0d0;border-radius:6px;font-size:13px;max-width:100%;"></select>
+      </div>
     </div>
 
     <div class="upload-error" id="uploadError"></div>
@@ -500,7 +523,15 @@ const hiddenSections = loadHiddenSections();
 // ══════════════════════════════════════════════════
 // SETTINGS PERSISTENCE
 // ══════════════════════════════════════════════════
+// When served by the daysheet app, settings come from (and save to) the server so the whole
+// team shares them. On a plain static page window.__TP_SERVER__ is absent → browser storage.
+function tpServer() { return (typeof window !== "undefined" && window.__TP_SERVER__) || null; }
 function loadSettings() {
+  if (tpServer() && tpServer().settings && Array.isArray(tpServer().settings.courses)) {
+    const s = { ...JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), ...JSON.parse(JSON.stringify(tpServer().settings)) };
+    if (!s.manualRequiredCoursesByArea) { s.manualRequiredCoursesByArea = {}; s.requiredCoursesByArea = {}; }
+    return s;
+  }
   try {
     const s = JSON.parse(localStorage.getItem("tpSettings"));
     if (s && s.courses) {
@@ -512,7 +543,13 @@ function loadSettings() {
   } catch(e) {}
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 }
-function saveSettings() { try { localStorage.setItem("tpSettings", JSON.stringify(settings)); } catch(e) {} }
+function saveSettings() {
+  try { localStorage.setItem("tpSettings", JSON.stringify(settings)); } catch(e) {}
+  if (tpServer() && tpServer().saveUrl) {
+    fetch(tpServer().saveUrl, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify(settings) })
+      .catch(() => {}); // best effort — the plan still works if the save fails
+  }
+}
 function loadHiddenSections() {
   try { return new Set(JSON.parse(localStorage.getItem("tpHidden")) || []); } catch(e) { return new Set(); }
 }
@@ -689,7 +726,7 @@ function normStatus(s) {
 }
 
 function findHeaderRow(rows) {
-  for (let r = 1; r < Math.min(rows.length, 15); r++) {
+  for (let r = 0; r < Math.min(rows.length, 15); r++) { // header can be the very first row (newer reports)
     const row = rows[r] || [];
     const lower = row.map(c => cellText(c).toLowerCase());
     if (lower.includes("name") && lower.some(c => /^course\s*\d+$/.test(c))) return r;
@@ -703,26 +740,53 @@ function parseSheet(rows) {
   const header = (rows[hr] || []).map(c => cellText(c).toLowerCase());
   const col = name => header.indexOf(name);
 
-  const idCol = col("tmid"), nameCol = col("name"), posCol = col("positiontitle");
-  const teamCol = col("home team"), areasCol = col("rostered service areas");
+  const firstOf = (...names) => { for (const n of names) { const i = col(n); if (i >= 0) return i; } return -1; };
+  const idCol = col("tmid"), nameCol = col("name"), posCol = firstOf("positiontitle", "position title", "position");
+  const teamCol = col("home team"), areasCol = firstOf("rostered service areas", "last rostered service areas", "last rostered service area");
 
   const groups = [];
   header.forEach((h, i) => {
     const m = /^course\s*(\d+)$/.exec(h);
     if (!m) return;
-    groups.push({ nameCol: i, doneCol: col(`course ${m[1]} completion`), statusCol: col(`course ${m[1]} status`) });
+    const n = m[1];
+    groups.push({
+      nameCol: i,
+      doneCol: firstOf(`course ${n} completion`, `course ${n} completion date`),
+      expCol: firstOf(`course ${n} expiration date`, `course ${n} expiry date`, `course ${n} expiration`),
+      statusCol: col(`course ${n} status`),
+    });
   });
+  // Newer reports have no Status column: a course with a completion date is Completed, and an
+  // empty slot means that person hasn't completed it. Each slot holds one course for everyone,
+  // so the course name for an empty slot is the name most people have in that column.
+  const dateOnly = groups.length > 0 && groups.every(g => g.statusCol < 0);
+  if (dateOnly) for (const g of groups) {
+    const counts = new Map();
+    for (let r = hr + 1; r < rows.length; r++) { const n = cellText((rows[r] || [])[g.nameCol]); if (n) counts.set(n, (counts.get(n) || 0) + 1); }
+    g.slotName = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  }
 
   const records = [];
   for (let r = hr + 1; r < rows.length; r++) {
     const row = rows[r] || [];
-    const name = cellText(row[nameCol]);
+    // Drop notes like "(On Leave)" so the name still matches the schedule
+    const name = cellText(row[nameCol]).replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
     if (!name) continue;
     const courses = [];
     for (const g of groups) {
+      const completedOn = g.doneCol >= 0 ? toIsoDate(row[g.doneCol]) : null;
+      const expiresOn = g.expCol >= 0 ? toIsoDate(row[g.expCol]) : null;
+      if (dateOnly) {
+        const courseName = cellText(row[g.nameCol]) || g.slotName;
+        if (!courseName) continue;
+        // This report lists completion vs NON-completion of these courses for everyone in it:
+        // a completion date = Completed, an empty slot = Not Started for that person.
+        courses.push({ name: courseName, status: completedOn ? "Completed" : "Not Started", completedOn, expiresOn });
+        continue;
+      }
       const courseName = cellText(row[g.nameCol]);
       if (!courseName) continue;
-      courses.push({ name: courseName, status: g.statusCol >= 0 ? normStatus(row[g.statusCol]) : "", completedOn: g.doneCol >= 0 ? toIsoDate(row[g.doneCol]) : null });
+      courses.push({ name: courseName, status: g.statusCol >= 0 ? normStatus(row[g.statusCol]) : "", completedOn, expiresOn });
     }
     records.push({ tmId: idCol >= 0 ? cellText(row[idCol]) : "", name, position: posCol >= 0 ? cellText(row[posCol]) : "", homeTeam: teamCol >= 0 ? cellText(row[teamCol]) : "", areas: areasCol >= 0 ? String(row[areasCol] || "").split(/\n+/).map(s => s.trim()).filter(Boolean) : [], courses });
   }
@@ -738,6 +802,61 @@ function parseLearningMatrix(buffer, fileName) {
     else sheetsSkipped.push(`${fileName} › ${sheet.name}`);
   }
   return { records, sheetsRead, sheetsSkipped };
+}
+
+// ══════════════════════════════════════════════════
+// COMMERCIAL BEST EXPERIENCE CSV (port of csvParser.js + storeReportParser.js)
+// ══════════════════════════════════════════════════
+function parseCsvRows(text) {
+  const rows = []; let row = [], field = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) { if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; } else field += ch; continue; }
+    if (ch === '"') inQ = true;
+    else if (ch === ",") { row.push(field); field = ""; }
+    else if (ch === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (ch !== "\r") field += ch;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+const storeCodeOf = cc => { const m = /^\s*(\d{3,6})\b/.exec(cc || ""); return m ? m[1] : ""; };
+function readStoreTable(csvText) {
+  const rows = parseCsvRows(String(csvText).replace(/^\uFEFF/, ""));
+  let hr = -1;
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const lower = (rows[i] || []).map(c => cellText(c).toLowerCase());
+    if (lower.includes("team member") && lower.includes("cost centre")) { hr = i; break; }
+  }
+  if (hr === -1) throw new Error('This CSV doesn\'t look like the Commercial Best Experience Training report (no "Team Member" / "Cost Centre" columns).');
+  const header = rows[hr].map(cellText), lower = header.map(h => h.toLowerCase());
+  const col = { id: lower.indexOf("tm id"), name: lower.indexOf("team member"), position: lower.indexOf("position"), cost: lower.indexOf("cost centre"), sum: lower.indexOf("sum") };
+  const data = rows.slice(hr + 1).filter(r => r && cellText(r[col.name]));
+  const firstCourse = (col.sum >= 0 ? col.sum : Math.max(col.cost, col.position)) + 1;
+  const courseCols = [];
+  for (let c = firstCourse; c < header.length; c++) if (header[c] && data.some(r => cellText(r[c]))) courseCols.push(c);
+  return { header, col, data, courseCols };
+}
+function listStores(csvText) {
+  const { col, data } = readStoreTable(csvText), stores = new Map();
+  for (const r of data) {
+    const cc = cellText(r[col.cost]), code = storeCodeOf(cc);
+    if (!code) continue;
+    const st = stores.get(code) || { code, label: cc, people: 0 }; st.people++; stores.set(code, st);
+  }
+  return [...stores.values()].sort((a, b) => a.code.localeCompare(b.code));
+}
+function parseStoreReport(csvText, storeCode) {
+  const { header, col, data, courseCols } = readStoreTable(csvText);
+  const records = [];
+  for (const r of data) {
+    if (storeCodeOf(cellText(r[col.cost])) !== String(storeCode)) continue;
+    const courses = [];
+    for (const c of courseCols) { const status = normStatus(r[c]); if (status) courses.push({ name: header[c], status, completedOn: null }); }
+    records.push({ tmId: col.id >= 0 ? cellText(r[col.id]) : "", name: cellText(r[col.name]).replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim(),
+      position: col.position >= 0 ? cellText(r[col.position]) : "", homeTeam: cellText(r[col.cost]), areas: [], courses });
+  }
+  return records;
 }
 
 const STATUS_RANK = { Expired: 3, "Not Started": 3, "In Progress": 2, "Completed (>1yr)": 1, "Completed (>2yrs)": 1, "Completed (>3yrs)": 1, Completed: 1 };
@@ -819,15 +938,18 @@ function computeNeeds(record, s, weekStartIso) {
   for (const c of record.courses) {
     const cfg = courseSetting(s, c.name);
     let status = null, expiresOn = null;
-    if (c.completedOn && cfg.validityMonths) expiresOn = addMonthsIso(c.completedOn, cfg.validityMonths);
+    if (c.expiresOn) expiresOn = c.expiresOn; // expiry date from the report itself wins
+    else if (c.completedOn && cfg.validityMonths) expiresOn = addMonthsIso(c.completedOn, cfg.validityMonths);
     if (c.status === "Expired" || c.status === "Not Started" || c.status === "In Progress") status = c.status;
     else if (c.status === "Completed") {
-      if (expiresOn && expiresOn <= horizon) {
+      if (expiresOn && expiresOn < weekStartIso) {
+        status = "Expired";
+      } else if (expiresOn && expiresOn <= horizon) {
         status = "Expiring soon";
       } else if (oldYears && c.completedOn && c.completedOn < addMonthsIso(weekStartIso, -12 * oldYears)) {
         status = oldCompletionStatus(oldYears);
       }
-    } else unknownStatuses.push(`${c.name}: "${c.status || "blank"}"`);
+    } else if (c.status) unknownStatuses.push(`${c.name}: "${c.status}"`); // blank = not assigned (handled by area rules)
     if (status) needs.push({ course: c.name, status, completedOn: c.completedOn, expiresOn, minutes: Number(cfg.minutes) || 30 });
   }
   needs.sort((a,b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.course.localeCompare(b.course));
@@ -1138,7 +1260,7 @@ function hideError() { el("uploadError").style.display = "none"; }
 // ══════════════════════════════════════════════════
 // FILE DROP ZONE SETUP
 // ══════════════════════════════════════════════════
-function setupDropZone(zoneId, inputId, listId, multi) {
+function setupDropZone(zoneId, inputId, listId, multi, onChange) {
   const zone = el(zoneId), input = el(inputId), list = el(listId);
   const files = [];
 
@@ -1149,6 +1271,7 @@ function setupDropZone(zoneId, inputId, listId, multi) {
       renderList(); updateGenBtn();
     }));
     updateGenBtn();
+    if (onChange) onChange([...files]);
   }
 
   function addFiles(newFiles) {
@@ -1545,6 +1668,20 @@ function applyViewToggles() {
 // MAIN GENERATE FLOW
 // ══════════════════════════════════════════════════
 let schedDropZone, matrixDropZone;
+let storeDropZone = null;
+// Fill the store dropdown from the CSV (remembers the last store picked; default 7021)
+async function refreshStorePicker(files) {
+  const wrap = el("storePickWrap"), sel = el("storeCode");
+  if (!files.length) { wrap.style.display = "none"; sel.innerHTML = ""; return; }
+  try {
+    const stores = listStores(await files[0].text());
+    let saved = ""; try { saved = localStorage.getItem("tpStoreCode") || ""; } catch (e) {}
+    const pick = stores.some(x => x.code === saved) ? saved : (stores.some(x => x.code === "7021") ? "7021" : (stores[0] || {}).code);
+    sel.innerHTML = stores.map(x => `<option value="${esc(x.code)}"${x.code === pick ? " selected" : ""}>${esc(x.label)} (${x.people})</option>`).join("");
+    wrap.style.display = "flex";
+    hideError();
+  } catch (e) { wrap.style.display = "none"; showError(e.message); }
+}
 
 async function readFileBuffer(file) {
   return new Promise((resolve, reject) => {
@@ -1562,9 +1699,10 @@ async function generate() {
   hideError();
   const schedFiles = schedDropZone.getFiles();
   const mxFiles = matrixDropZone.getFiles();
+  const storeFiles = storeDropZone ? storeDropZone.getFiles() : [];
 
   if (!schedFiles.length) { showError("Please select a Weekly Employee Schedule file."); return; }
-  if (!mxFiles.length) { showError("Please select at least one Learning Matrix file."); return; }
+  if (!mxFiles.length && !storeFiles.length) { showError("Please add a Learning Matrix report (.xlsx) or the Commercial Best Experience Training report (.csv)."); return; }
 
   showLoading("Reading schedule…");
   await new Promise(r => setTimeout(r, 0)); // let UI update
@@ -1582,7 +1720,7 @@ async function generate() {
       const todayIso = new Date().toISOString().slice(0, 10);
       let bestIdx = 0;
       for (let i = 0; i < _parsedWeeks.length; i++) {
-        if (_parsedWeeks[i].weekStartIso >= todayIso) { bestIdx = i; break; }
+        if ((_parsedWeeks[i].weekEndIso || _parsedWeeks[i].weekStartIso) >= todayIso) { bestIdx = i; break; } // this week (or the next one)
         bestIdx = i; // fall back to last past week if all are past
       }
       _selectedWeekIndex = bestIdx;
@@ -1604,6 +1742,17 @@ async function generate() {
       const { records } = parseLearningMatrix(buf, f.name);
       allRecords.push(...records);
     }
+    for (const f of storeFiles) {
+      const code = el("storeCode").value;
+      el("loadingMsg").textContent = `Reading ${f.name} (store ${code})…`;
+      await new Promise(r => setTimeout(r, 0));
+      const text = await f.text();
+      const records = parseStoreReport(text, code);
+      if (!records.length) throw new Error(`Store ${code} has no team members in ${f.name}. Pick a different store.`);
+      try { localStorage.setItem("tpStoreCode", code); } catch (e) {}
+      allRecords.push(...records);
+    }
+    if (!allRecords.length) throw new Error("No team members found in the training report(s).");
 
     el("loadingMsg").textContent = "Merging records…";
     await new Promise(r => setTimeout(r, 0));
@@ -1639,6 +1788,9 @@ async function generate() {
       // except rules you typed in Settings, and only for courses that are in these files.
       lastDataCourses = new Set(matrixRecords.flatMap(r => (r.courses || []).map(c => c.name)).filter(Boolean));
       lastAutoRules = Object.fromEntries(Object.entries(detectedRules).map(([a, set]) => [a, [...set].sort()]));
+      // New course names get default settings (30 minutes, validity unknown) so they show in Settings
+      settings.courses = settings.courses || [];
+      for (const n of lastDataCourses) if (!settings.courses.some(c => c.name === n)) settings.courses.push({ name: n, minutes: 30, validityMonths: null });
       settings.requiredCoursesByArea = effectiveRules();
       saveSettings();
     }
@@ -1694,7 +1846,8 @@ function fillPrintFilters() {
 function updateGenBtn() {
   const hasSchedule = schedDropZone && schedDropZone.getFiles().length > 0;
   const hasMatrix = matrixDropZone && matrixDropZone.getFiles().length > 0;
-  el("generateBtn").disabled = !(hasSchedule && hasMatrix);
+  const hasStore = storeDropZone && storeDropZone.getFiles().length > 0;
+  el("generateBtn").disabled = !(hasSchedule && (hasMatrix || hasStore));
 }
 
 // ══════════════════════════════════════════════════
@@ -1729,6 +1882,16 @@ function readAreaRules() {
 }
 
 function openSettings() {
+  // Course minutes / validity — every course in settings plus any in the loaded files
+  const names = [...new Set([...(settings.courses || []).map(c => c.name), ...lastDataCourses])].sort((a, b) => a.localeCompare(b));
+  el("courseTimesEditor").innerHTML = names.length ? names.map(n => {
+    const c = courseSetting(settings, n);
+    return `<div class="course-time-row" data-name="${esc(n)}" style="display:flex;gap:6px;align-items:center;font-size:12px;">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(n)}">${esc(n)}</span>
+      <input type="number" class="ct-min" min="5" step="5" value="${Number(c.minutes) || 30}" style="width:62px;padding:3px 5px;" title="Minutes"> min
+      <input type="number" class="ct-val" min="1" value="${c.validityMonths == null ? "" : c.validityMonths}" placeholder="—" style="width:56px;padding:3px 5px;" title="Validity (months)"> mths
+    </div>`;
+  }).join("") : `<em style="font-size:12px;color:#888">Courses appear here once a report has been loaded.</em>`;
   el("sComplianceTarget").value = settings.complianceTargetPercent;
   el("sShiftBuffer").value = settings.shiftBufferMinutes;
   el("sMaxPerDay").value = settings.maxMinutesPerPersonPerDay;
@@ -1757,6 +1920,11 @@ function saveAndRegenerate() {
   settings.maxMinutesPerPersonPerDay = Number(el("sMaxPerDay").value) || 90;
   settings.maxConcurrentPerDepartment = Number(el("sMaxConcurrent").value) || 4;
   settings.expiringSoonDays = Number(el("sExpiringSoon").value) || 30;
+  const rows = [...document.querySelectorAll("#courseTimesEditor .course-time-row")];
+  if (rows.length) settings.courses = rows.map(r => {
+    const v = r.querySelector(".ct-val").value.trim();
+    return { name: r.dataset.name, minutes: Math.max(5, Number(r.querySelector(".ct-min").value) || 30), validityMonths: v === "" ? null : Math.max(1, Number(v) || 1) };
+  });
   settings.manualRequiredCoursesByArea = readAreaRules();
   settings.requiredCoursesByArea = effectiveRules();
   saveSettings();
@@ -1775,6 +1943,8 @@ function saveAndRegenerate() {
 document.addEventListener("DOMContentLoaded", () => {
   schedDropZone = setupDropZone("schedDrop", "schedFile", "schedFileList", false);
   matrixDropZone = setupDropZone("matrixDrop", "matrixFiles", "matrixFileList", true);
+  storeDropZone = setupDropZone("storeDrop", "storeFile", "storeFileList", false, refreshStorePicker);
+  el("uploadSettingsLink").addEventListener("click", e => { e.preventDefault(); openSettings(); });
 
   el("generateBtn").addEventListener("click", generate);
 
