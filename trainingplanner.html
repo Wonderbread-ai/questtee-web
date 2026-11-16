@@ -1142,7 +1142,14 @@ function buildTrainingPlan({ matrixRecords, schedule, departmentGroups, settings
         }
         if (placed) break;
       }
-      if (!placed) unscheduled.push({ name: p.name, dept: p.dept, course: need.course, status: need.status, reason: days.length ? "No free time inside their shifts without clashing with another department" : "Not rostered" });
+      if (!placed) {
+        const len2 = Math.ceil(need.minutes / slot) * slot;
+        const allFull = days.length && days.every(d => (personMins.get(`${p.name}|${d}`) || 0) + len2 > maxPerDay);
+        const reason = !days.length ? "Not rostered"
+          : allFull ? `Already has the daily maximum (${maxPerDay} min) of training on ${days.length === 1 ? "their only rostered day" : "every rostered day"} this week`
+          : "No free time inside their shifts without clashing with another department";
+        unscheduled.push({ name: p.name, dept: p.dept, course: need.course, status: need.status, reason });
+      }
     }
   }
 
