@@ -564,9 +564,29 @@ function excelSerialToDate(serial) {
   return new Date((serial - 25569) * 86400 * 1000);
 }
 
+// Some exports (e.g. the LTR Learning Matrix reports) declare their size as "A1:A1" even though
+// the data runs to row 158. The reader keeps every cell but only returns rows inside that declared
+// size, so widen it to cover every cell that's actually there.
+function fixSheetRange(ws) {
+  if (!ws) return ws;
+  let maxR = -1, maxC = -1;
+  for (const k in ws) {
+    if (k[0] === "!") continue;
+    const a = XLSX.utils.decode_cell(k);
+    if (a.r > maxR) maxR = a.r;
+    if (a.c > maxC) maxC = a.c;
+  }
+  if (maxR < 0) return ws;
+  const cur = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]) : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+  if (maxR > cur.e.r || maxC > cur.e.c) {
+    ws["!ref"] = XLSX.utils.encode_range({ s: cur.s, e: { r: Math.max(cur.e.r, maxR), c: Math.max(cur.e.c, maxC) } });
+  }
+  return ws;
+}
+
 function readFirstSheetRows(buffer) {
   const wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: false, cellNF: false, cellText: false });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  const ws = fixSheetRange(wb.Sheets[wb.SheetNames[0]]);
   return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: true });
 }
 
@@ -574,7 +594,7 @@ function readAllSheets(buffer) {
   const wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: false, cellNF: false, cellText: false });
   return wb.SheetNames.map(name => ({
     name,
-    rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null, blankrows: true })
+    rows: XLSX.utils.sheet_to_json(fixSheetRange(wb.Sheets[name]), { header: 1, defval: null, blankrows: true })
   }));
 }
 
@@ -1747,6 +1767,7 @@ async function generate() {
       el("loadingMsg").textContent = `Parsing ${f.name}…`;
       await new Promise(r => setTimeout(r, 0));
       const { records } = parseLearningMatrix(buf, f.name);
+      if (!records.length) throw new Error(`No team members could be read from ${f.name}. Check it's a Learning Matrix Completion vs Non Completion report (with Name and Course 1, Course 2… columns).`);
       allRecords.push(...records);
     }
     for (const f of storeFiles) {
