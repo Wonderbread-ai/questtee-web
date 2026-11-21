@@ -652,6 +652,19 @@ function parseWeeklyScheduleAllWeeks(buffer) {
       for (const col of Object.keys(dayDateByCol)) {
         const v = row[Number(col)];
         if (typeof v !== "string") continue;
+        // Split shift: another time range for the same day on a row under the person.
+        // Widen that day's shift to cover every part (2, 3 or more).
+        const t = /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/.exec(v.trim());
+        if (t) {
+          const d = dayDateByCol[col], cur = lastPerson.shifts[d];
+          const mins = x => { const [h, mm] = x.split(":").map(Number); return h * 60 + mm; };
+          if (!cur) lastPerson.shifts[d] = { start: t[1], end: t[2] };
+          else {
+            if (mins(t[1]) < mins(cur.start)) cur.start = t[1];
+            if (mins(t[2]) > mins(cur.end)) cur.end = t[2];
+          }
+          continue;
+        }
         const m = /^[^\/]+\/(.+)$/.exec(v.trim());
         if (!m) continue;
         const area = m[1].trim().toUpperCase();
