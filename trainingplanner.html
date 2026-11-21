@@ -526,6 +526,11 @@ const hiddenSections = loadHiddenSections();
 // When served by the daysheet app, settings come from (and save to) the server so the whole
 // team shares them. On a plain static page window.__TP_SERVER__ is absent → browser storage.
 function tpServer() { return (typeof window !== "undefined" && window.__TP_SERVER__) || null; }
+// Usage report (daysheet only): tell the server a function was used. Does nothing on a plain page.
+function tpTrack(name) {
+  const srv = tpServer(); if (!srv || !srv.trackUrl) return;
+  try { const b = JSON.stringify({ name }); if (!(navigator.sendBeacon && navigator.sendBeacon(srv.trackUrl, b))) fetch(srv.trackUrl, { method: "POST", body: b, keepalive: true, credentials: "same-origin" }); } catch (e) {}
+}
 function loadSettings() {
   if (tpServer() && tpServer().settings && Array.isArray(tpServer().settings.courses)) {
     const s = { ...JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), ...JSON.parse(JSON.stringify(tpServer().settings)) };
@@ -1373,13 +1378,13 @@ function renderDashboard(plan) {
   const allDeptChip = document.createElement("span");
   allDeptChip.className = "chip all-chip" + (activeDeptFilter === "ALL" ? " active" : "");
   allDeptChip.textContent = "All";
-  allDeptChip.addEventListener("click", () => { activeDeptFilter = "ALL"; renderDashboard(currentPlan); });
+  allDeptChip.addEventListener("click", () => { activeDeptFilter = "ALL"; tpTrack("Training plan: department filter"); renderDashboard(currentPlan); });
   deptBar.appendChild(allDeptChip);
   plan.departments.forEach(dept => {
     const chip = document.createElement("span");
     chip.className = "chip" + (activeDeptFilter === dept ? " active" : "");
     chip.textContent = dept;
-    chip.addEventListener("click", () => { activeDeptFilter = dept; renderDashboard(currentPlan); });
+    chip.addEventListener("click", () => { activeDeptFilter = dept; tpTrack("Training plan: department filter"); renderDashboard(currentPlan); });
     deptBar.appendChild(chip);
   });
 
@@ -1389,14 +1394,14 @@ function renderDashboard(plan) {
   const allDayChip = document.createElement("span");
   allDayChip.className = "chip all-chip" + (activeDayFilter === "ALL" ? " active" : "");
   allDayChip.textContent = "All";
-  allDayChip.addEventListener("click", () => { activeDayFilter = "ALL"; renderDashboard(currentPlan); });
+  allDayChip.addEventListener("click", () => { activeDayFilter = "ALL"; tpTrack("Training plan: day filter"); renderDashboard(currentPlan); });
   dayBar.appendChild(allDayChip);
   plan.dates.forEach(date => {
     const chip = document.createElement("span");
     chip.className = "chip" + (activeDayFilter === date ? " active" : "");
     chip.textContent = formatDate(date).replace(/\d{4}$/, "").trim();
     chip.title = date;
-    chip.addEventListener("click", () => { activeDayFilter = date; renderDashboard(currentPlan); });
+    chip.addEventListener("click", () => { activeDayFilter = date; tpTrack("Training plan: day filter"); renderDashboard(currentPlan); });
     dayBar.appendChild(chip);
   });
 
@@ -1421,6 +1426,7 @@ function renderDashboard(plan) {
           activeAreaFilter.add(value);
         }
       }
+      tpTrack("Training plan: area filter");
       renderDashboard(currentPlan);
     });
     return c;
@@ -1460,6 +1466,7 @@ function renderDashboard(plan) {
       } else {
         // Select all in group
         allInGroup.forEach(a => activeAreaFilter.add(a));
+        tpTrack("Training plan: department group filter");
       }
       renderDashboard(currentPlan);
     });
@@ -1501,6 +1508,7 @@ function renderDashboard(plan) {
       else if (activeCourseFilter.has(value)) activeCourseFilter.delete(value);
       else activeCourseFilter.add(value);
       if (activeCourseFilter.size === allCourseNames.length) activeCourseFilter.clear(); // every course picked = All
+      tpTrack("Training plan: course filter");
       renderDashboard(currentPlan);
     });
     return c;
@@ -1848,6 +1856,7 @@ async function generate() {
     hideLoading();
     el("uploadPage").style.display = "none";
     el("dashPage").style.display = "block";
+    tpTrack(storeFiles.length ? (mxFiles.length ? "Generate training plan (matrix + CBE)" : "Generate training plan (CBE)") : "Generate training plan (matrix)");
     renderDashboard(plan);
   } catch(err) {
     hideLoading();
@@ -1861,6 +1870,7 @@ function changeWeek(delta) {
   const newIdx = _selectedWeekIndex + delta;
   if (newIdx < 0 || newIdx >= _parsedWeeks.length) return;
   _selectedWeekIndex = newIdx;
+  tpTrack("Training plan: change week");
   lastParsedSchedule = _parsedWeeks[_selectedWeekIndex];
   rebuildPlan();
 }
@@ -2025,6 +2035,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Re-train old completions (off / >1 / >2 / >3 years) — re-runs the full plan engine
   document.querySelectorAll("#oldCompletionChips .chip").forEach(c => c.addEventListener("click", () => {
     includeOldCompletions = Number(c.dataset.years) || 0;
+    tpTrack(includeOldCompletions ? `Training plan: re-train over ${includeOldCompletions} year${includeOldCompletions > 1 ? "s" : ""}` : "Training plan: re-train off");
     rebuildPlan();
   }));
 });
